@@ -1,0 +1,14 @@
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+pydantic==2.7.1
+pydantic-settings==2.3.0
+anthropic==0.28.0
+aiokafka==0.11.0
+redis[asyncio]==5.0.5
+python-dotenv==1.0.1
+structlog==24.2.0
+tenacity==8.3.0
+httpx==0.27.0
+# TTS clients
+elevenlabs==1.5.1
+boto3==1.34.144     # AWS Polly fallback

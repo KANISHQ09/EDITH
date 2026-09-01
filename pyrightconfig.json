@@ -1,0 +1,6 @@
+{
+  "extraPaths": [
+    "D:/python/Lib/site-packages",
+    "./services/classification-engine/src"
+  ]
+}

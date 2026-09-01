@@ -1,0 +1,41 @@
+apiVersion: v2
+name: vaic
+description: Voice AI Incident Commander — Umbrella Helm Chart
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: api
+    version: "1.0.0"
+    repository: "file://charts/api"
+  - name: incident-state-manager
+    version: "1.0.0"
+    repository: "file://charts/incident-state-manager"
+  - name: websocket-gateway
+    version: "1.0.0"
+    repository: "file://charts/websocket-gateway"
+  - name: audio-ingestion
+    version: "1.0.0"
+    repository: "file://charts/audio-ingestion"
+  - name: classification-engine
+    version: "1.0.0"
+    repository: "file://charts/classification-engine"
+  - name: transcription-engine
+    version: "1.0.0"
+    repository: "file://charts/transcription-engine"
+  - name: conflict-detector
+    version: "1.0.0"
+    repository: "file://charts/conflict-detector"
+  - name: voice-synthesis-engine
+    version: "1.0.0"
+    repository: "file://charts/voice-synthesis-engine"
+  - name: tool-integration-gateway
+    version: "1.0.0"
+    repository: "file://charts/tool-integration-gateway"
+  - name: report-generator
+    version: "1.0.0"
+    repository: "file://charts/report-generator"
+  - name: frontend
+    version: "1.0.0"
+    repository: "file://charts/frontend"

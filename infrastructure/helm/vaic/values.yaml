@@ -1,0 +1,183 @@
+# ─── Global values shared across all sub-charts ────────────────
+global:
+  imageTag: "latest"
+  ecrRegistry: ""  # Set by CI: {account}.dkr.ecr.{region}.amazonaws.com
+  environment: "production"
+  canaryWeight: 100
+
+  # Shared infrastructure endpoints (from Terraform outputs)
+  kafka:
+    brokers: ""  # Set via --set or values override
+
+  redis:
+    url: ""      # Set via --set or values override
+
+  database:
+    url: ""      # Set via --set or values override
+
+  # Agora config injected from Secrets Manager via External Secrets Operator
+  secretsManager:
+    secretArn: ""
+
+# ─── Per-service overrides ──────────────────────────────────────
+
+api:
+  replicaCount: 3
+  image:
+    repository: vaic/api
+  resources:
+    requests: { cpu: "250m", memory: "256Mi" }
+    limits:   { cpu: "1", memory: "1Gi" }
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  service:
+    type: ClusterIP
+    port: 3001
+
+incident-state-manager:
+  replicaCount: 2
+  image:
+    repository: vaic/incident-state-manager
+  resources:
+    requests: { cpu: "500m", memory: "512Mi" }
+    limits:   { cpu: "2", memory: "2Gi" }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+
+websocket-gateway:
+  replicaCount: 3
+  image:
+    repository: vaic/websocket-gateway
+  resources:
+    requests: { cpu: "250m", memory: "256Mi" }
+    limits:   { cpu: "1", memory: "1Gi" }
+  service:
+    type: ClusterIP
+    port: 3002
+  # Sticky sessions required for WebSocket connections
+  sessionAffinity: ClientIP
+
+audio-ingestion:
+  replicaCount: 2
+  image:
+    repository: vaic/audio-ingestion
+  resources:
+    requests: { cpu: "250m", memory: "256Mi" }
+    limits:   { cpu: "1", memory: "512Mi" }
+
+classification-engine:
+  replicaCount: 2
+  image:
+    repository: vaic/classification-engine
+  resources:
+    requests: { cpu: "1", memory: "1Gi" }
+    limits:   { cpu: "4", memory: "4Gi" }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+
+transcription-engine:
+  replicaCount: 2
+  image:
+    repository: vaic/transcription-engine
+  # Runs on GPU nodes
+  nodeSelector:
+    workload: "ml"
+  tolerations:
+    - key: "nvidia.com/gpu"
+      operator: "Exists"
+      effect: "NoSchedule"
+  resources:
+    requests:
+      cpu: "4"
+      memory: "8Gi"
+      nvidia.com/gpu: "1"
+    limits:
+      cpu: "8"
+      memory: "16Gi"
+      nvidia.com/gpu: "1"
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+  # Long startup due to model loading
+  startupProbe:
+    httpGet:
+      path: /ready
+      port: 8002
+    failureThreshold: 30
+    periodSeconds: 10  # 5 minutes max startup
+
+conflict-detector:
+  replicaCount: 1
+  image:
+    repository: vaic/conflict-detector
+  resources:
+    requests: { cpu: "500m", memory: "512Mi" }
+    limits:   { cpu: "2", memory: "2Gi" }
+
+voice-synthesis-engine:
+  replicaCount: 1
+  image:
+    repository: vaic/voice-synthesis-engine
+  resources:
+    requests: { cpu: "500m", memory: "512Mi" }
+    limits:   { cpu: "2", memory: "1Gi" }
+
+tool-integration-gateway:
+  replicaCount: 2
+  image:
+    repository: vaic/tool-integration-gateway
+  resources:
+    requests: { cpu: "250m", memory: "256Mi" }
+    limits:   { cpu: "1", memory: "512Mi" }
+
+report-generator:
+  replicaCount: 1
+  image:
+    repository: vaic/report-generator
+  resources:
+    requests: { cpu: "500m", memory: "512Mi" }
+    limits:   { cpu: "2", memory: "2Gi" }
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: vaic/frontend
+  resources:
+    requests: { cpu: "250m", memory: "256Mi" }
+    limits:   { cpu: "1", memory: "512Mi" }
+  service:
+    type: ClusterIP
+    port: 3000
+
+# ─── Nginx Ingress ─────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  hosts:
+    - host: vaic.example.com
+      paths:
+        - path: /api
+          service: api
+          port: 3001
+        - path: /ws
+          service: websocket-gateway
+          port: 3002
+        - path: /
+          service: frontend
+          port: 3000
+  tls:
+    - secretName: vaic-tls
+      hosts: ["vaic.example.com"]

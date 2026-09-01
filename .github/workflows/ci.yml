@@ -1,0 +1,196 @@
+name: CI — Build & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+jobs:
+  # ─── Lint & Type Check ──────────────────────────────────────
+  lint-ts:
+    name: TypeScript Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: "npm" }
+      - run: npm ci --workspaces
+      - run: npm run typecheck --workspaces --if-present
+      - run: npm run lint --workspaces --if-present
+
+  lint-py:
+    name: Python Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install ruff mypy
+      - run: ruff check services/*/src/ --ignore E501
+      - run: ruff format --check services/*/src/
+
+  # ─── Unit Tests ──────────────────────────────────────────────
+  test-ts:
+    name: TypeScript Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint-ts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: "npm" }
+      - run: npm ci --workspaces
+      - run: npm test --workspaces --if-present
+        env:
+          NODE_ENV: test
+          MOCK_LLM_MODE: "true"
+          MOCK_AUDIO_MODE: "true"
+
+  test-py:
+    name: Python Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint-py
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - name: Install deps
+        run: |
+          for dir in services/classification-engine services/conflict-detector services/transcription-engine services/report-generator services/voice-synthesis-engine; do
+            if [ -f "$dir/requirements.txt" ]; then
+              pip install -r "$dir/requirements.txt" --quiet
+            fi
+          done
+          pip install pytest pytest-asyncio
+      - run: pytest services/ -x -q --tb=short
+        env:
+          MOCK_LLM_MODE: "true"
+          MOCK_AUDIO_MODE: "true"
+
+  # ─── Docker Build ─────────────────────────────────────────────
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-ts, test-py]
+    if: github.event_name == 'push'
+    strategy:
+      matrix:
+        service:
+          - name: api
+            context: services/api
+            dockerfile: services/api/Dockerfile
+          - name: incident-state-manager
+            context: services/incident-state-manager
+            dockerfile: services/incident-state-manager/Dockerfile
+          - name: websocket-gateway
+            context: services/websocket-gateway
+            dockerfile: services/websocket-gateway/Dockerfile
+          - name: audio-ingestion
+            context: services/audio-ingestion
+            dockerfile: services/audio-ingestion/Dockerfile
+          - name: tool-integration-gateway
+            context: services/tool-integration-gateway
+            dockerfile: services/tool-integration-gateway/Dockerfile
+          - name: classification-engine
+            context: services/classification-engine
+            dockerfile: services/classification-engine/Dockerfile
+          - name: conflict-detector
+            context: services/conflict-detector
+            dockerfile: services/conflict-detector/Dockerfile
+          - name: transcription-engine
+            context: services/transcription-engine
+            dockerfile: services/transcription-engine/Dockerfile.gpu
+            build-args: DEVICE=cpu,WHISPER_MODEL=small  # CPU image for staging
+          - name: voice-synthesis-engine
+            context: services/voice-synthesis-engine
+            dockerfile: services/voice-synthesis-engine/Dockerfile
+          - name: report-generator
+            context: services/report-generator
+            dockerfile: services/report-generator/Dockerfile
+          - name: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/vaic/${{ matrix.service.name }}:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/vaic/${{ matrix.service.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: ${{ matrix.service.build-args || '' }}
+
+  # ─── Security Scan ────────────────────────────────────────────
+  security-scan:
+    name: Security Scan (Snyk)
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
+
+  # ─── Deploy to Staging ────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-images, security-scan]
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name vaic-staging --region ${{ secrets.AWS_REGION }}
+
+      - name: Deploy via Helm
+        run: |
+          helm upgrade --install vaic ./infrastructure/helm/vaic \
+            --namespace vaic-staging \
+            --create-namespace \
+            --set global.imageTag=${{ github.sha }} \
+            --set global.ecrRegistry=${{ env.ECR_REGISTRY }} \
+            --set global.environment=staging \
+            --values ./infrastructure/helm/vaic/values.staging.yaml \
+            --wait --timeout=10m
+
+      - name: Run smoke tests
+        run: |
+          STAGING_URL=$(kubectl get svc nginx-ingress -n vaic-staging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          curl -f "https://${STAGING_URL}/api/health" || exit 1
+          echo "Staging smoke test passed"
