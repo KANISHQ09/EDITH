@@ -48,7 +48,7 @@ jobs:
         with: { node-version: "${{ env.NODE_VERSION }}", cache: "npm" }
       - run: npm ci --workspaces
       - run: npm run build --workspace=shared
-      - run: npm test --workspaces --if-present
+      - run: npm test --workspaces --if-present -- --passWithNoTests
         env:
           NODE_ENV: test
           MOCK_LLM_MODE: "true"

@@ -161,19 +161,25 @@ The summary should be suitable for senior leadership who need to understand:
 Write in plain English. Be specific with facts. Avoid jargon.
 Maximum 300 words."""
 
+        facts_list = "\n".join(f"- {f.get('content', '')}" for f in facts[:10])
+        decisions_list = "\n".join(f"- {d.get('content', '')}" for d in decisions[:5])
+        actions_list = "\n".join(
+            f"- {a.get('content', '')} (Owner: {a.get('ownerName', 'Unassigned')})" for a in action_items[:10]
+        )
+
         user_content = f"""Incident: {incident.get("title", "")}
 Severity: {incident.get("severity", "")}
 Duration: {mttr_minutes} minutes
 Affected Systems: {", ".join(incident.get("affectedSystems", []))}
 
 Confirmed Facts:
-{chr(10).join(f'- {f.get("content", "")}' for f in facts[:10])}
+{facts_list}
 
 Key Decisions Made:
-{chr(10).join(f'- {d.get("content", "")}' for d in decisions[:5])}
+{decisions_list}
 
 Action Items:
-{chr(10).join(f'- {a.get("content", "")} (Owner: {a.get("ownerName", "Unassigned")})' for a in action_items[:10])}
+{actions_list}
 
 Write the executive summary now:"""
 

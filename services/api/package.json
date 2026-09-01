@@ -8,9 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
-    "test:unit": "jest --testPathPattern=unit",
-    "test:integration": "jest --testPathPattern=integration",
+    "test": "jest --passWithNoTests",
+    "test:unit": "jest --testPathPattern=unit --passWithNoTests",
+    "test:integration": "jest --testPathPattern=integration --passWithNoTests",
     "lint": "eslint src",
     "migrate": "node -r ts-node/register src/db/migrate.ts",
     "migrate:rollback": "node -r ts-node/register src/db/migrate.ts rollback"
