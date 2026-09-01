@@ -52,11 +52,7 @@ class ConflictDetector:
         """Generate semantic embedding for a text via Gemini or OpenAI."""
         if self.gemini_api_key:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key={self.gemini_api_key}"
-            payload = {
-                "content": {
-                    "parts": [{"text": text}]
-                }
-            }
+            payload = {"content": {"parts": [{"text": text}]}}
             resp = await self.http_client.post(url, json=payload)
             if resp.status_code == 200:
                 data = resp.json()
@@ -90,18 +86,14 @@ class ConflictDetector:
             return []
         return json.loads(str(raw))
 
-    async def add_fact_embedding(
-        self, incident_id: str, fact_id: str, text: str, embedding: list[float]
-    ) -> None:
+    async def add_fact_embedding(self, incident_id: str, fact_id: str, text: str, embedding: list[float]) -> None:
         """Add a new fact embedding to the Redis cache."""
         key = f"{FACTS_CACHE_KEY_PREFIX}{incident_id}"
         existing = await self.get_existing_fact_embeddings(incident_id)
         existing.append({"fact_id": fact_id, "text": text, "embedding": embedding})
         await self.redis.set(key, json.dumps(existing), ex=86400)
 
-    async def confirm_contradiction(
-        self, fact_a: str, fact_b: str
-    ) -> tuple[bool, str]:
+    async def confirm_contradiction(self, fact_a: str, fact_b: str) -> tuple[bool, str]:
         """Verify whether two similar facts actually contradict each other."""
         prompt = f"""You are reviewing two statements from a live incident response call.
 Determine if these two statements are genuinely contradictory — i.e., they cannot both be true.
@@ -120,7 +112,7 @@ Respond with ONLY valid JSON:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={self.gemini_api_key}"
             payload = {
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                "generationConfig": {"response_mime_type": "application/json", "temperature": 0.1}
+                "generationConfig": {"response_mime_type": "application/json", "temperature": 0.1},
             }
             resp = await self.http_client.post(url, json=payload)
             if resp.status_code == 200:
@@ -141,9 +133,7 @@ Respond with ONLY valid JSON:
 
         return False, ""
 
-    async def check_for_conflicts(
-        self, incident_id: str, fact_id: str, fact_text: str
-    ) -> dict | None:
+    async def check_for_conflicts(self, incident_id: str, fact_id: str, fact_text: str) -> dict | None:
         new_embedding = await self.embed_text(fact_text)
         existing_facts = await self.get_existing_fact_embeddings(incident_id)
 
@@ -191,6 +181,7 @@ async def run_conflict_detector() -> None:
     if os.getenv("OPENAI_API_KEY"):
         try:
             import openai  # type: ignore
+
             openai_client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         except Exception:
             pass
@@ -199,6 +190,7 @@ async def run_conflict_detector() -> None:
     if os.getenv("ANTHROPIC_API_KEY"):
         try:
             import anthropic  # type: ignore
+
             anthropic_client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         except Exception:
             pass

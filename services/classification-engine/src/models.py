@@ -30,6 +30,7 @@ class ClaudeClassificationResponse(BaseModel):
     Schema that Claude must return for each utterance.
     Matches the classification prompt schema in System Design §7.1.
     """
+
     type: ClassificationType
     confidence: float = Field(ge=0.0, le=1.0)
     summary: str
@@ -40,6 +41,7 @@ class ClaudeClassificationResponse(BaseModel):
 
 class TranscriptEntryMessage(BaseModel):
     """Kafka message from transcript.entries topic"""
+
     incident_id: str
     participant_id: str | None = None
     speaker_label: str | None = None
@@ -54,6 +56,7 @@ class TranscriptEntryMessage(BaseModel):
 
 class ClassificationRecord(BaseModel):
     """Kafka message to publish on classifications topic"""
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     transcript_entry_id: str | None = None
     incident_id: str
@@ -71,6 +74,7 @@ class ClassificationRecord(BaseModel):
 
 class ContextWindowEntry(BaseModel):
     """Single entry in the LLM context window (last N utterances)"""
+
     speaker_name: str | None = None
     role: str | None = None
     text: str

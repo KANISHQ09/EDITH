@@ -60,6 +60,7 @@ class TTSProvider:
 
         try:
             from elevenlabs.client import AsyncElevenLabs
+
             client = AsyncElevenLabs(api_key=self.elevenlabs_api_key)
             audio = await client.text_to_speech.convert(
                 voice_id=self.elevenlabs_voice_id,
@@ -75,6 +76,7 @@ class TTSProvider:
         """AWS Polly fallback TTS."""
         try:
             import boto3
+
             polly = boto3.client("polly", region_name=os.getenv("AWS_REGION", "us-east-1"))
             response = polly.synthesize_speech(
                 Text=text,
@@ -120,7 +122,9 @@ class VoiceSynthesisEngine:
             parts.append(f"{actions_count} action item{'s' if actions_count != 1 else ''} are pending.")
 
         if conflicts_count > 0:
-            parts.append(f"Warning: {conflicts_count} unresolved conflict{'s' if conflicts_count != 1 else ''} detected.")
+            parts.append(
+                f"Warning: {conflicts_count} unresolved conflict{'s' if conflicts_count != 1 else ''} detected."
+            )
 
         if questions_count > 0:
             parts.append(f"{questions_count} open question{'s' if questions_count != 1 else ''} remain unanswered.")

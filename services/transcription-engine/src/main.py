@@ -83,10 +83,8 @@ async def health():
 async def ready():
     from .asr.whisper_asr import WhisperASR
     from .diarization.speaker_diarizer import SpeakerDiarizer
-    models_loaded = (
-        WhisperASR._instance is not None
-        and SpeakerDiarizer._instance is not None
-    )
+
+    models_loaded = WhisperASR._instance is not None and SpeakerDiarizer._instance is not None
     return {
         "ready": models_loaded,
         "whisper_loaded": WhisperASR._instance is not None,

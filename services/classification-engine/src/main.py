@@ -101,6 +101,7 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "src.main:app",
         host=settings.host,

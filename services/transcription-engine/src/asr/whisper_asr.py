@@ -71,11 +71,15 @@ class WhisperASR:
           ...
         ]
         """
-        vad_opts = VadOptions(
-            threshold=0.5,
-            min_silence_duration_ms=300,
-            speech_pad_ms=100,
-        ) if settings.whisper_vad_filter else None
+        vad_opts = (
+            VadOptions(
+                threshold=0.5,
+                min_silence_duration_ms=300,
+                speech_pad_ms=100,
+            )
+            if settings.whisper_vad_filter
+            else None
+        )
 
         segments, info = self.model.transcribe(
             audio_pcm,
@@ -93,13 +97,15 @@ class WhisperASR:
             avg_log_prob = seg.avg_logprob if hasattr(seg, "avg_logprob") else -0.5
             confidence = float(np.exp(avg_log_prob))  # Convert log-prob to 0–1
 
-            results.append({
-                "text": seg.text.strip(),
-                "start": seg.start,
-                "end": seg.end,
-                "confidence": round(min(confidence, 1.0), 3),
-                "no_speech_prob": round(seg.no_speech_prob, 3),
-            })
+            results.append(
+                {
+                    "text": seg.text.strip(),
+                    "start": seg.start,
+                    "end": seg.end,
+                    "confidence": round(min(confidence, 1.0), 3),
+                    "no_speech_prob": round(seg.no_speech_prob, 3),
+                }
+            )
 
         logger.debug(
             "Whisper transcription complete",

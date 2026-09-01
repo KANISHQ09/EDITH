@@ -41,20 +41,12 @@ logger = structlog.get_logger(__name__)
 # Regex to detect speaker role self-ID in transcript text
 # e.g. "I'm Alex and I'm the incident commander for this call"
 ROLE_PATTERNS = {
-    "INCIDENT_COMMANDER": re.compile(
-        r"\b(incident commander|IC|commanding today|I'm the IC)\b", re.IGNORECASE
-    ),
-    "RESPONDER": re.compile(
-        r"\b(on-call|oncall|responding|I'm from the .+ team)\b", re.IGNORECASE
-    ),
-    "OBSERVER": re.compile(
-        r"\b(just observing|silently|on for context|joining as observer)\b", re.IGNORECASE
-    ),
+    "INCIDENT_COMMANDER": re.compile(r"\b(incident commander|IC|commanding today|I'm the IC)\b", re.IGNORECASE),
+    "RESPONDER": re.compile(r"\b(on-call|oncall|responding|I'm from the .+ team)\b", re.IGNORECASE),
+    "OBSERVER": re.compile(r"\b(just observing|silently|on for context|joining as observer)\b", re.IGNORECASE),
 }
 
-NAME_PATTERN = re.compile(
-    r"(?:I'm|I am|this is|my name is)\s+([A-Z][a-z]+(?: [A-Z][a-z]+)?)", re.IGNORECASE
-)
+NAME_PATTERN = re.compile(r"(?:I'm|I am|this is|my name is)\s+([A-Z][a-z]+(?: [A-Z][a-z]+)?)", re.IGNORECASE)
 
 
 class AudioAccumulator:
@@ -162,12 +154,8 @@ class TranscriptionConsumer:
             return  # Not enough audio yet
 
         # Run ASR + Diarization in parallel
-        asr_task = asyncio.get_event_loop().run_in_executor(
-            None, self.whisper.transcribe, accumulated, speaker_label
-        )
-        diar_task = asyncio.get_event_loop().run_in_executor(
-            None, self.diarizer.diarize, accumulated
-        )
+        asr_task = asyncio.get_event_loop().run_in_executor(None, self.whisper.transcribe, accumulated, speaker_label)
+        diar_task = asyncio.get_event_loop().run_in_executor(None, self.diarizer.diarize, accumulated)
 
         whisper_segments, diarization_segments = await asyncio.gather(asr_task, diar_task)
 
@@ -182,9 +170,7 @@ class TranscriptionConsumer:
         speaker_mapper = SpeakerMapper(self.redis, incident_id)
 
         for segment in aligned:
-            speaker_name = await speaker_mapper.get_or_create_mapping(
-                segment["speaker"]
-            )
+            speaker_name = await speaker_mapper.get_or_create_mapping(segment["speaker"])
             content = segment["text"].strip()
             if not content:
                 continue

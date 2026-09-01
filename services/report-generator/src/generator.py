@@ -40,6 +40,7 @@ class ISRGenerator:
         if settings.anthropic_api_key:
             try:
                 import anthropic  # type: ignore
+
                 self.claude = anthropic.Anthropic(api_key=settings.anthropic_api_key)
             except Exception:
                 pass
@@ -48,6 +49,7 @@ class ISRGenerator:
         if settings.aws_access_key_id and settings.aws_secret_access_key:
             try:
                 import boto3  # type: ignore
+
                 self.s3 = boto3.client(
                     "s3",
                     aws_access_key_id=settings.aws_access_key_id,
@@ -61,6 +63,7 @@ class ISRGenerator:
         if settings.enable_slack and settings.slack_bot_token:
             try:
                 from slack_sdk import WebClient  # type: ignore
+
                 self.slack = WebClient(token=settings.slack_bot_token)
             except Exception:
                 pass
@@ -117,6 +120,7 @@ class ISRGenerator:
             pdf_url = f"s3://{settings.s3_reports_bucket}/{pdf_key}"
         else:
             import os
+
             report_dir = f"./reports/{incident_id}"
             os.makedirs(report_dir, exist_ok=True)
             with open(f"{report_dir}/isr.md", "w", encoding="utf-8") as f:
@@ -157,10 +161,10 @@ The summary should be suitable for senior leadership who need to understand:
 Write in plain English. Be specific with facts. Avoid jargon.
 Maximum 300 words."""
 
-        user_content = f"""Incident: {incident.get('title', '')}
-Severity: {incident.get('severity', '')}
+        user_content = f"""Incident: {incident.get("title", "")}
+Severity: {incident.get("severity", "")}
 Duration: {mttr_minutes} minutes
-Affected Systems: {', '.join(incident.get('affectedSystems', []))}
+Affected Systems: {", ".join(incident.get("affectedSystems", []))}
 
 Confirmed Facts:
 {chr(10).join(f'- {f.get("content", "")}' for f in facts[:10])}
@@ -176,11 +180,14 @@ Write the executive summary now:"""
         if self.gemini_key:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent?key={self.gemini_key}"
             async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(url, json={
-                    "system_instruction": {"parts": [{"text": system_prompt}]},
-                    "contents": [{"role": "user", "parts": [{"text": user_content}]}],
-                    "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600}
-                })
+                resp = await client.post(
+                    url,
+                    json={
+                        "system_instruction": {"parts": [{"text": system_prompt}]},
+                        "contents": [{"role": "user", "parts": [{"text": user_content}]}],
+                        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600},
+                    },
+                )
                 if resp.status_code == 200:
                     data = resp.json()
                     return str(data["candidates"][0]["content"]["parts"][0]["text"]).strip()
@@ -197,9 +204,7 @@ Write the executive summary now:"""
 
         return f"Executive Summary: Incident {incident.get('title', '')} resolved with MTTR of {mttr_minutes} minutes."
 
-    async def _post_to_slack(
-        self, incident: dict[str, Any], summary: str, mttr_minutes: int, pdf_url: str
-    ) -> None:
+    async def _post_to_slack(self, incident: dict[str, Any], summary: str, mttr_minutes: int, pdf_url: str) -> None:
         severity_emoji = {"P1": "🔴", "P2": "🟠", "P3": "🟡", "P4": "🟢"}.get(str(incident.get("severity")), "⚪")
 
         try:
@@ -236,6 +241,7 @@ Write the executive summary now:"""
 
 
 # ─── Kafka Consumer ────────────────────────────────────────────
+ 
 
 async def run_report_consumer() -> None:
     """

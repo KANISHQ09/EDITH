@@ -50,6 +50,7 @@ class Classifier:
         if settings.anthropic_api_key:
             try:
                 import anthropic  # type: ignore
+
                 self.anthropic_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
             except Exception:
                 pass
@@ -65,20 +66,13 @@ class Classifier:
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent?key={self.gemini_key}"
         payload = {
-            "system_instruction": {
-                "parts": [{"text": CLASSIFICATION_SYSTEM_PROMPT}]
-            },
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": user_message}]
-                }
-            ],
+            "system_instruction": {"parts": [{"text": CLASSIFICATION_SYSTEM_PROMPT}]},
+            "contents": [{"role": "user", "parts": [{"text": user_message}]}],
             "generationConfig": {
                 "response_mime_type": "application/json",
                 "temperature": 0.1,
                 "maxOutputTokens": 2048,
-            }
+            },
         }
 
         resp = await self.http_client.post(url, json=payload)
@@ -153,9 +147,7 @@ class Classifier:
                     timeout=self.timeout_s,
                 )
         except asyncio.TimeoutError as exc:
-            raise ClassificationError(
-                f"LLM API timed out after {self.timeout_s}s for incident {incident_id}"
-            ) from exc
+            raise ClassificationError(f"LLM API timed out after {self.timeout_s}s for incident {incident_id}") from exc
 
         # Parse and validate JSON response
         try:

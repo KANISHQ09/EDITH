@@ -87,8 +87,8 @@ MOCK_CLASSIFICATION_RESPONSE = {
         "metrics": [],
         "error_codes": [],
         "urls": [],
-        "tools": []
+        "tools": [],
     },
     "action_item_owner": None,
-    "requires_followup": False
+    "requires_followup": False,
 }

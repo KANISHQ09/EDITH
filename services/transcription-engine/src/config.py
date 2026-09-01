@@ -14,16 +14,16 @@ class Settings(BaseSettings):
     kafka_client_id: str = "vaic-transcription-engine"
 
     # Whisper
-    whisper_model: str = "large-v3"   # tiny | base | small | medium | large-v3
-    whisper_device: str = "cpu"        # cpu | cuda
-    whisper_compute_type: str = "int8" # int8 (cpu) | float16 (gpu) | int8_float16 (gpu fast)
-    whisper_language: str = "en"       # Force English for speed; set to None for auto-detect
+    whisper_model: str = "large-v3"  # tiny | base | small | medium | large-v3
+    whisper_device: str = "cpu"  # cpu | cuda
+    whisper_compute_type: str = "int8"  # int8 (cpu) | float16 (gpu) | int8_float16 (gpu fast)
+    whisper_language: str = "en"  # Force English for speed; set to None for auto-detect
     whisper_beam_size: int = 5
-    whisper_vad_filter: bool = True    # Use built-in Whisper VAD to skip silence
+    whisper_vad_filter: bool = True  # Use built-in Whisper VAD to skip silence
 
     # Pyannote diarization
     pyannote_model: str = "pyannote/speaker-diarization-3.1"
-    hf_token: str = ""                 # HuggingFace token for pyannote model download
+    hf_token: str = ""  # HuggingFace token for pyannote model download
     diarization_min_speakers: int = 1
     diarization_max_speakers: int = 12
 

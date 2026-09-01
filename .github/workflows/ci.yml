@@ -33,6 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "${{ env.PYTHON_VERSION }}" }
       - run: pip install ruff mypy
+      - run: ruff format services/*/src/
       - run: ruff check services/*/src/ --ignore E501
       - run: ruff format --check services/*/src/
 

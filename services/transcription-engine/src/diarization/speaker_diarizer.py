@@ -33,12 +33,12 @@ class SpeakerDiarizer:
     def __init__(self):
         if not settings.hf_token:
             logger.warning(
-                "HF_TOKEN not set — pyannote model may fail to download. "
-                "Set hf_token in config or HF_TOKEN env var."
+                "HF_TOKEN not set — pyannote model may fail to download. Set hf_token in config or HF_TOKEN env var."
             )
 
         logger.info("Loading pyannote diarization pipeline", model=settings.pyannote_model)
         from pyannote.audio import Pipeline
+
         self.pipeline = Pipeline.from_pretrained(
             settings.pyannote_model,
             use_auth_token=settings.hf_token or None,
@@ -88,11 +88,13 @@ class SpeakerDiarizer:
 
         segments = []
         for turn, _, speaker in diarization.itertracks(yield_label=True):
-            segments.append({
-                "speaker": speaker,
-                "start": round(turn.start, 3),
-                "end": round(turn.end, 3),
-            })
+            segments.append(
+                {
+                    "speaker": speaker,
+                    "start": round(turn.start, 3),
+                    "end": round(turn.end, 3),
+                }
+            )
 
         return segments
 
@@ -110,9 +112,7 @@ class SpeakerMapper:
         self.key = f"vaic:speakers:{incident_id}"
         self.ttl = settings.speaker_map_ttl_s
 
-    async def get_or_create_mapping(
-        self, pyannote_label: str, agora_uid: int | None = None
-    ) -> str:
+    async def get_or_create_mapping(self, pyannote_label: str, agora_uid: int | None = None) -> str:
         """
         Returns the stable speaker label for a pyannote speaker.
         If the pyannote label is new, registers it (optionally linking to an Agora UID).
@@ -175,9 +175,11 @@ def align_transcripts_with_speakers(
         # Assign to the speaker with the most overlap
         dominant_speaker = max(overlaps, key=overlaps.get) if overlaps else "SPEAKER_00"
 
-        aligned.append({
-            **ws,
-            "speaker": dominant_speaker,
-        })
+        aligned.append(
+            {
+                **ws,
+                "speaker": dominant_speaker,
+            }
+        )
 
     return aligned
