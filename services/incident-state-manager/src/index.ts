@@ -49,6 +49,7 @@ async function main() {
   if (MESSAGE_BROKER === 'redis') {
     logger.info({ message: 'Using Redis Pub/Sub for Incident State Manager', service: 'ism' });
     redisSub = redis.duplicate();
+    redisSub.on('error', (err) => logger.error({ message: 'Redis subscriber error', error: err.message, service: 'ism' }));
     await redisSub.connect();
 
     await redisSub.subscribe([KAFKA_TOPICS.CLASSIFICATIONS, KAFKA_TOPICS.AUDIT_EVENTS], async (message, channel) => {
