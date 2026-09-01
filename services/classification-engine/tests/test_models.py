@@ -6,7 +6,7 @@ No external dependencies (Kafka, LLM APIs) required.
 import pytest
 from pydantic import ValidationError
 
-from ..src.models import (
+from src.models import (
     ClassificationRecord,
     ClassificationType,
     ClaudeClassificationResponse,
