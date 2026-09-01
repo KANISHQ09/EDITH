@@ -307,13 +307,10 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
 
         case 'TOOL_ACTION_CONFIRMED':
         case 'TOOL_ACTION_REJECTED':
-        case 'TOOL_ACTION_EXECUTED': {
-          const newStatus = deltaType === 'TOOL_ACTION_CONFIRMED' ? 'CONFIRMED'
-            : deltaType === 'TOOL_ACTION_REJECTED' ? 'REJECTED' : 'EXECUTED';
+        case 'TOOL_ACTION_EXECUTED':
           return {
             pendingToolActions: state.pendingToolActions.filter(a => a.id !== payload.toolActionId),
           };
-        }
 
         case 'PARTICIPANT_JOINED':
           return {

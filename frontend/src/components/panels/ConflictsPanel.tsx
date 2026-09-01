@@ -3,7 +3,7 @@
 import { useIncidentStore } from '@/stores/incidentStore';
 
 export function ConflictsPanel() {
-  const { conflicts, incident, resolveConflict } = useIncidentStore();
+  const { conflicts, resolveConflict } = useIncidentStore();
   const open = conflicts.filter(c => c.status === 'OPEN');
 
   return (

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface IncidentSummary {
   id: string;
@@ -110,13 +111,13 @@ export default function Home() {
           </div>
 
           <div style={{ display: 'flex', gap: 12 }}>
-            <a
+            <Link
               href="/incident/demo"
               className="btn btn-secondary btn-sm"
               style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
             >
               🚀 Open Demo War Room
-            </a>
+            </Link>
           </div>
         </div>
 

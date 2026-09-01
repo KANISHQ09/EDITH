@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useIncidentStore, ToolAction } from '@/stores/incidentStore';
+import { useIncidentStore } from '@/stores/incidentStore';
 
 export function ConfirmationModal() {
   const { pendingToolActions, confirmToolAction, rejectToolAction } = useIncidentStore();
@@ -37,7 +37,7 @@ export function ConfirmationModal() {
           <div>
             <div className="modal-title">VAIC Confirmation Required</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              VAIC notice: I'd like to execute a {action.tool} action. Your approval is required.
+              VAIC notice: I&apos;d like to execute a {action.tool} action. Your approval is required.
             </div>
           </div>
         </div>

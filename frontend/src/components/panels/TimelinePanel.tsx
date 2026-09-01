@@ -2,16 +2,6 @@
 
 import { useIncidentStore } from '@/stores/incidentStore';
 
-const TYPE_CONFIG: Record<string, { dot: string; label: string }> = {
-  FACT:          { dot: 'fact',        label: 'Fact' },
-  HYPOTHESIS:    { dot: 'hypothesis',  label: 'Hypothesis' },
-  DECISION:      { dot: 'decision',    label: 'Decision' },
-  ACTION_ITEM:   { dot: 'action_item', label: 'Action' },
-  QUESTION:      { dot: 'question',    label: 'Question' },
-  STATUS_UPDATE: { dot: 'status_update', label: 'Update' },
-  CONFLICT:      { dot: 'conflict',    label: 'Conflict' },
-};
-
 // Build timeline from all classified items
 function useTimelineEntries() {
   const { facts, hypotheses, decisions, actionItems, questions, conflicts, incident } = useIncidentStore();

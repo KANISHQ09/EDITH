@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
 import { useIncidentStore } from '@/stores/incidentStore';
 import { useElapsedTime } from '@/hooks/useElapsedTime';
 import { useAgoraVoice } from '@/hooks/useAgoraVoice';
@@ -8,7 +9,7 @@ import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
 import { ReportModal } from '@/components/ReportModal';
 
 export function AppHeader() {
-  const { incident, wsConnected, vaicListening, participants, setIncident } = useIncidentStore();
+  const { incident, wsConnected, participants, setIncident } = useIncidentStore();
   const elapsed = useElapsedTime(incident?.startTs);
   const [briefingText, setBriefingText] = useState<string | null>(null);
   const [isBriefingLoading, setIsBriefingLoading] = useState(false);
@@ -88,10 +89,10 @@ export function AppHeader() {
       <header className="app-header">
         {/* Brand */}
         <div className="header-brand">
-          <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit' }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit' }}>
             <div className="logo-dot" />
             VAIC
-          </a>
+          </Link>
           <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 13 }}>
             — Voice AI Incident Commander
           </span>

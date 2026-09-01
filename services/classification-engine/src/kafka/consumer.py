@@ -11,7 +11,7 @@ import structlog
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from redis.asyncio import Redis
 
-from ..classifiers.claude_classifier import Classifier
+from ..classifiers.claude_classifier import ClassificationError, Classifier
 from ..config import settings
 from ..context.window_manager import ContextWindowManager
 from ..models import (

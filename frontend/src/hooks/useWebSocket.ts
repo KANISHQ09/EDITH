@@ -67,8 +67,8 @@ export function useWebSocket(incidentId: string, token?: string) {
         return;
       }
 
-      // Max out at 3 reconnect attempts to prevent infinite spam
-      if (reconnectAttempts.current < 3) {
+      // Max out at MAX_RECONNECT_ATTEMPTS attempts to prevent infinite spam
+      if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts.current += 1;
         reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS);
       }
@@ -86,7 +86,7 @@ export function useWebSocket(incidentId: string, token?: string) {
       }
       setWsConnected(false);
     };
-  }, [connect]);
+  }, [connect, setWsConnected]);
 
   return { ws: wsRef.current };
 }

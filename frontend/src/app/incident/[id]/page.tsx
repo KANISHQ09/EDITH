@@ -3,7 +3,6 @@
 import { useEffect, use } from 'react';
 import { useIncidentStore } from '@/stores/incidentStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { useElapsedTime } from '@/hooks/useElapsedTime';
 
 import { AppHeader } from '@/components/layout/AppHeader';
 import { AppSidebar } from '@/components/layout/AppSidebar';

@@ -11,7 +11,7 @@
     "test": "jest",
     "test:unit": "jest --testPathPattern=unit",
     "test:integration": "jest --testPathPattern=integration",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "migrate": "node -r ts-node/register src/db/migrate.ts",
     "migrate:rollback": "node -r ts-node/register src/db/migrate.ts rollback"
   },
