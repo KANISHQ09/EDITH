@@ -3,7 +3,8 @@ Markdown ISR renderer using Jinja2 templates.
 """
 
 from datetime import datetime
-from jinja2 import Environment, BaseLoader
+
+from jinja2 import BaseLoader, Environment
 
 ISR_TEMPLATE = """# Incident Summary Report
 

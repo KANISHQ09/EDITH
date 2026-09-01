@@ -12,9 +12,6 @@ Pipeline:
   5. Align with Whisper text segments
 """
 
-import io
-import json
-from typing import Optional
 import numpy as np
 import structlog
 import torch
@@ -62,7 +59,7 @@ class SpeakerDiarizer:
     def diarize(
         self,
         audio_float32: np.ndarray,
-        num_speakers: Optional[int] = None,
+        num_speakers: int | None = None,
     ) -> list[dict]:
         """
         Run speaker diarization on a float32 audio array.
@@ -74,8 +71,6 @@ class SpeakerDiarizer:
           ...
         ]
         """
-        import soundfile as sf
-
         # pyannote requires (channel, time) tensor or a file-like
         audio_tensor = torch.tensor(audio_float32).unsqueeze(0)  # (1, samples)
 
@@ -116,7 +111,7 @@ class SpeakerMapper:
         self.ttl = settings.speaker_map_ttl_s
 
     async def get_or_create_mapping(
-        self, pyannote_label: str, agora_uid: Optional[int] = None
+        self, pyannote_label: str, agora_uid: int | None = None
     ) -> str:
         """
         Returns the stable speaker label for a pyannote speaker.

@@ -22,16 +22,19 @@ import re
 import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Optional
 
 import numpy as np
 import structlog
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from redis.asyncio import Redis
 
-from ..config import settings
 from ..asr.whisper_asr import WhisperASR, pcm_bytes_to_float32
-from ..diarization.speaker_diarizer import SpeakerDiarizer, SpeakerMapper, align_transcripts_with_speakers
+from ..config import settings
+from ..diarization.speaker_diarizer import (
+    SpeakerDiarizer,
+    SpeakerMapper,
+    align_transcripts_with_speakers,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -65,7 +68,7 @@ class AudioAccumulator:
         # incident_id → participant_id → list of PCM float32 arrays
         self._buffers: dict[str, dict[str, list[np.ndarray]]] = defaultdict(lambda: defaultdict(list))
 
-    def add_chunk(self, incident_id: str, participant_id: str, pcm_float32: np.ndarray) -> Optional[np.ndarray]:
+    def add_chunk(self, incident_id: str, participant_id: str, pcm_float32: np.ndarray) -> np.ndarray | None:
         """
         Add a 500ms chunk. Returns the accumulated buffer when ready, else None.
         """
@@ -87,8 +90,8 @@ class TranscriptionConsumer:
         self.diarizer = SpeakerDiarizer.get_instance()
         self.accumulator = AudioAccumulator(target_chunks=settings.accumulate_chunks)
 
-        self._consumer: Optional[AIOKafkaConsumer] = None
-        self._producer: Optional[AIOKafkaProducer] = None
+        self._consumer: AIOKafkaConsumer | None = None
+        self._producer: AIOKafkaProducer | None = None
 
     async def start(self):
         self._consumer = AIOKafkaConsumer(
@@ -218,7 +221,7 @@ class TranscriptionConsumer:
                 confidence=segment["confidence"],
             )
 
-    def _detect_self_id(self, text: str) -> tuple[Optional[str], Optional[str]]:
+    def _detect_self_id(self, text: str) -> tuple[str | None, str | None]:
         """
         Returns (role, name) if the speaker self-identifies.
         E.g. "I'm Alex, the incident commander" → ("INCIDENT_COMMANDER", "Alex")

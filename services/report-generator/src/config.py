@@ -1,4 +1,3 @@
-from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,9 +9,9 @@ class Settings(BaseSettings):
     port: int = 8005
 
     # LLM config
-    gemini_api_key: Optional[str] = None
+    gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.0-flash"
-    anthropic_api_key: Optional[str] = None
+    anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-4-6"
 
     # Kafka
@@ -21,13 +20,13 @@ class Settings(BaseSettings):
 
     # S3
     s3_reports_bucket: str = "vaic-reports-prod"
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
     aws_region: str = "us-east-1"
 
     # Slack
     enable_slack: bool = False
-    slack_bot_token: Optional[str] = None
+    slack_bot_token: str | None = None
     slack_isr_channel: str = "#incident-reports"
 
     # Internal API

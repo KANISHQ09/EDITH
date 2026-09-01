@@ -3,11 +3,12 @@ NLP Classification Engine — LLM Classifier
 Classifies transcript utterances using Google Gemini (primary) or Anthropic Claude (alternative).
 """
 
-import json
 import asyncio
+import json
 from typing import Any
-import structlog
+
 import httpx
+import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..config import settings
@@ -27,7 +28,6 @@ logger = structlog.get_logger(__name__)
 
 class ClassificationError(Exception):
     """Raised when classification fails after all retries"""
-    pass
 
 
 class Classifier:

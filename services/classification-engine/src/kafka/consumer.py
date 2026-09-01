@@ -3,25 +3,22 @@ Classification Engine — Kafka Consumer + Producer
 Consumes from transcript.entries.{incident_id} and publishes to classifications.{incident_id}
 """
 
-import asyncio
 import json
 import uuid
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
 
 import structlog
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from aiokafka.errors import KafkaError
 from redis.asyncio import Redis
 
+from ..classifiers.claude_classifier import Classifier
 from ..config import settings
+from ..context.window_manager import ContextWindowManager
 from ..models import (
-    TranscriptEntryMessage,
     ClassificationRecord,
     ContextWindowEntry,
+    TranscriptEntryMessage,
 )
-from ..classifiers.claude_classifier import Classifier, ClassificationError
-from ..context.window_manager import ContextWindowManager
 
 logger = structlog.get_logger(__name__)
 
@@ -39,8 +36,8 @@ class ClassificationConsumer:
         self.redis = redis
         self.classifier = Classifier()
         self.context_manager = ContextWindowManager(redis)
-        self.consumer: Optional[AIOKafkaConsumer] = None
-        self.producer: Optional[AIOKafkaProducer] = None
+        self.consumer: AIOKafkaConsumer | None = None
+        self.producer: AIOKafkaProducer | None = None
         self._running = False
 
     async def start(self) -> None:
@@ -156,7 +153,7 @@ class ClassificationConsumer:
             speaker_name=entry.speaker_name,
             speaker_role=entry.speaker_role,
             original_text=entry.content,
-            created_at=datetime.utcnow().isoformat() + "Z",
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         # Update context window with this utterance + its classification
@@ -203,6 +200,6 @@ class ClassificationConsumer:
                     "actor_id": "VAIC_SYSTEM",
                     "action": "UNASSIGNED_ACTION_ITEM_DETECTED",
                     "details": {"summary": result.summary, "classification_id": record.id},
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
             )

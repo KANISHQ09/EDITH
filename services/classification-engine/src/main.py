@@ -3,10 +3,9 @@ Classification Engine — FastAPI Application Entry Point
 """
 
 import asyncio
-import logging
-import structlog
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 from redis.asyncio import Redis
 

@@ -21,6 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "${{ env.NODE_VERSION }}", cache: "npm" }
       - run: npm ci --workspaces
+      - run: npm run build --workspace=shared
       - run: npm run typecheck --workspaces --if-present
       - run: npm run lint --workspaces --if-present
 
@@ -45,6 +46,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "${{ env.NODE_VERSION }}", cache: "npm" }
       - run: npm ci --workspaces
+      - run: npm run build --workspace=shared
       - run: npm test --workspaces --if-present
         env:
           NODE_ENV: test

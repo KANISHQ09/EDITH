@@ -5,7 +5,7 @@ Used to give Claude conversation context for accurate classification (NCE-09).
 """
 
 import json
-from typing import List, Optional
+
 import structlog
 from redis.asyncio import Redis
 
@@ -53,7 +53,7 @@ class ContextWindowManager:
             speaker=entry.speaker_name,
         )
 
-    async def get_context(self, incident_id: str) -> List[ContextWindowEntry]:
+    async def get_context(self, incident_id: str) -> list[ContextWindowEntry]:
         """
         Retrieve the current context window (ordered oldest → newest).
         Returns an empty list if no context exists yet.
@@ -65,7 +65,7 @@ class ContextWindowManager:
             return []
 
         # Redis list is newest-first (LPUSH), so reverse for chronological order
-        entries = []
+        entries: list[ContextWindowEntry] = []
         for raw in reversed(raw_entries):
             try:
                 data = json.loads(raw)

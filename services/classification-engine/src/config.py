@@ -1,4 +1,3 @@
-from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,11 +20,11 @@ class Settings(BaseSettings):
     llm_provider: str = "gemini"
 
     # Google Gemini
-    gemini_api_key: Optional[str] = None
+    gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
 
     # Anthropic (Alternative)
-    anthropic_api_key: Optional[str] = None
+    anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-4-6"
 
     classification_timeout_ms: int = 5000

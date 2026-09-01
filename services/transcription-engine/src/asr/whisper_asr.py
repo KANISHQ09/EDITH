@@ -9,7 +9,6 @@ Voice Activity Detection (VAD) is enabled by default — Whisper's built-in
 silero-VAD skips silent segments, reducing unnecessary LLM calls downstream.
 """
 
-import io
 import numpy as np
 import structlog
 from faster_whisper import WhisperModel

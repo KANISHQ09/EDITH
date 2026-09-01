@@ -3,7 +3,6 @@ VAIC Classification Engine — Claude Prompt Design
 Implements the classification prompt from System Design §7.1
 """
 
-from typing import List
 from ..models import ContextWindowEntry
 
 CLASSIFICATION_SYSTEM_PROMPT = """You are an incident intelligence extraction engine embedded in a live technical incident response call.
@@ -49,7 +48,7 @@ def build_classification_prompt(
     utterance_text: str,
     speaker_name: str,
     speaker_role: str,
-    context_window: List[ContextWindowEntry],
+    context_window: list[ContextWindowEntry],
 ) -> str:
     """
     Build the user message for the classification prompt.

@@ -4,7 +4,7 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "paths": {
-      "@vaic/shared": ["../../shared/src"]
+      "@vaic/shared": ["../../shared/dist"]
     }
   },
   "include": ["src/**/*"]

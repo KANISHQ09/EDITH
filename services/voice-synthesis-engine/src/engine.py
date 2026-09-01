@@ -13,11 +13,9 @@ Responsibilities:
 import asyncio
 import json
 import os
-from datetime import datetime
-from typing import Optional
-import structlog
 
-from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+import structlog
+from aiokafka import AIOKafkaConsumer
 
 logger = structlog.get_logger(__name__)
 
@@ -50,7 +48,7 @@ class TTSProvider:
         self.elevenlabs_voice_id = os.getenv("ELEVENLABS_VOICE_ID")
         self.use_elevenlabs = bool(self.elevenlabs_api_key) and os.getenv("ENABLE_TTS", "false") == "true"
 
-    async def synthesize(self, text: str) -> Optional[bytes]:
+    async def synthesize(self, text: str) -> bytes | None:
         """
         Synthesize text to audio bytes.
         Returns None if TTS is disabled or fails.
@@ -73,7 +71,7 @@ class TTSProvider:
             logger.warning("ElevenLabs TTS failed, falling back", error=str(e))
             return await self._polly_fallback(text)
 
-    async def _polly_fallback(self, text: str) -> Optional[bytes]:
+    async def _polly_fallback(self, text: str) -> bytes | None:
         """AWS Polly fallback TTS."""
         try:
             import boto3
@@ -102,7 +100,7 @@ class VoiceSynthesisEngine:
         self.incident_states: dict[str, dict] = {}  # In-memory state summaries per incident
         self.pending_confirmations: dict[str, dict] = {}  # Tool proposals awaiting voice confirm
 
-    def detect_voice_command(self, transcript_text: str) -> Optional[str]:
+    def detect_voice_command(self, transcript_text: str) -> str | None:
         """Check if a transcript entry contains a VAIC voice command."""
         normalized = transcript_text.lower().strip().rstrip("?!.")
         return VOICE_COMMANDS.get(normalized)
@@ -199,7 +197,7 @@ class VoiceSynthesisEngine:
         finally:
             await consumer.stop()
 
-    async def _handle_voice_command(self, command: str, incident_id: Optional[str]) -> None:
+    async def _handle_voice_command(self, command: str, incident_id: str | None) -> None:
         """Respond to a detected voice command."""
         logger.info("Voice command detected", command=command, incident_id=incident_id)
 

@@ -7,16 +7,16 @@ Implements System Design §7 (Conflict Detection pipeline):
   4. If confirmed, publish CONFLICT record to Kafka
 """
 
-import os
-import json
 import asyncio
+import json
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 import numpy as np
 import structlog
-import httpx
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from redis.asyncio import Redis
 from tenacity import retry, stop_after_attempt, wait_exponential

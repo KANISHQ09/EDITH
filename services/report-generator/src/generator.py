@@ -17,8 +17,8 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-import structlog
 import httpx
+import structlog
 from aiokafka import AIOKafkaConsumer
 
 from .config import settings

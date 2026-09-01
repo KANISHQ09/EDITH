@@ -1,0 +1,18 @@
+line-length = 120
+target-version = "py311"
+
+[lint]
+select = ["E", "F"]
+ignore = [
+    "E501",      # Line length
+    "BLE001",    # Do not catch blind exception
+    "S110",      # try-except-pass detected
+    "DTZ003",    # datetime.utcnow() used
+    "ASYNC230",  # Async functions opening files
+    "G201",      # logger.error(..., exc_info=True)
+    "PIE790",    # Unnecessary pass
+    "UP045",     # X | None
+    "UP035",     # List deprecated
+    "UP006",     # List deprecated
+    "I001",      # Unsorted imports
+]

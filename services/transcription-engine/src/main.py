@@ -3,8 +3,9 @@ Transcription Engine — FastAPI application entry point.
 """
 
 import asyncio
-import structlog
 from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
