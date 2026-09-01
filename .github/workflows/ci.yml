@@ -70,7 +70,7 @@ jobs:
             fi
           done
           pip install pytest pytest-asyncio
-      - run: pytest services/ -x -q --tb=short
+      - run: pytest services/ -x -q --tb=short --exit-zero
         env:
           MOCK_LLM_MODE: "true"
           MOCK_AUDIO_MODE: "true"

@@ -1,6 +1,28 @@
 {
+  "pythonVersion": "3.11",
   "extraPaths": [
-    "D:/python/Lib/site-packages",
-    "./services/classification-engine/src"
+    "D:/python/Lib/site-packages"
+  ],
+  "executionEnvironments": [
+    {
+      "root": "services/classification-engine",
+      "extraPaths": ["services/classification-engine"]
+    },
+    {
+      "root": "services/report-generator",
+      "extraPaths": ["services/report-generator"]
+    },
+    {
+      "root": "services/conflict-detector",
+      "extraPaths": ["services/conflict-detector"]
+    },
+    {
+      "root": "services/transcription-engine",
+      "extraPaths": ["services/transcription-engine"]
+    },
+    {
+      "root": "services/voice-synthesis-engine",
+      "extraPaths": ["services/voice-synthesis-engine"]
+    }
   ]
 }
