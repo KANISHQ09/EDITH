@@ -70,9 +70,15 @@ jobs:
             fi
           done
           pip install pytest pytest-asyncio
-      - run: pytest services/ -x -q --tb=short --ignore=services/classification-engine/test_standalone.py
+      - name: Run unit tests
+        run: |
+          for dir in services/classification-engine services/conflict-detector services/transcription-engine services/report-generator services/voice-synthesis-engine; do
+            if [ -d "$dir/tests" ]; then
+              echo "Testing $dir..."
+              PYTHONPATH="$dir" pytest "$dir/tests" -v --tb=short
+            fi
+          done
         env:
-          PYTHONPATH: services/classification-engine:services/conflict-detector:services/transcription-engine:services/report-generator:services/voice-synthesis-engine
           MOCK_LLM_MODE: "true"
           MOCK_AUDIO_MODE: "true"
 
