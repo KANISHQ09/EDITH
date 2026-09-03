@@ -6,6 +6,7 @@ import { useIncidentStore } from '@/stores/incidentStore';
 import { useElapsedTime } from '@/hooks/useElapsedTime';
 import { useAgoraVoice } from '@/hooks/useAgoraVoice';
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { ReportModal } from '@/components/ReportModal';
 
 export function AppHeader() {
@@ -18,6 +19,9 @@ export function AppHeader() {
   const [isReportOpen, setIsReportOpen] = useState(false);
 
   const { speak, stop: stopSpeaking, isSpeaking } = useVoiceSynthesis();
+  const { isListening, toggleListening, isSupported: isSpeechSupported } = useSpeechRecognition({
+    incidentId: incident?.id || 'demo',
+  });
 
   const {
     isJoined,
@@ -87,15 +91,32 @@ export function AppHeader() {
   return (
     <>
       <header className="app-header">
-        {/* Brand */}
-        <div className="header-brand">
+        {/* Brand & Back Navigation */}
+        <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link
+            href="/"
+            className="btn btn-secondary btn-sm"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontWeight: 600,
+              fontSize: 12,
+              padding: '6px 12px',
+              textDecoration: 'none',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+            }}
+            title="Return to Incidents Dashboard"
+          >
+            <span>←</span>
+            <span>All Incidents</span>
+          </Link>
+          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit' }}>
             <div className="logo-dot" />
-            VAIC
+            <span style={{ fontWeight: 800, letterSpacing: 0.5 }}>VAIC</span>
           </Link>
-          <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 13 }}>
-            — Voice AI Incident Commander
-          </span>
         </div>
 
         {/* Incident Info */}
@@ -104,7 +125,7 @@ export function AppHeader() {
             <span className={`badge-severity ${incident.severity.toLowerCase()}`}>
               {incident.severity}
             </span>
-            <span style={{ fontSize: 14, fontWeight: 600, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {incident.title}
             </span>
             <span className={`badge-status ${incident.status.toLowerCase()}`}>
@@ -116,6 +137,25 @@ export function AppHeader() {
 
         {/* Status Controls */}
         <div className="header-actions">
+          {/* Live Voice Mic Button */}
+          {isSpeechSupported && (
+            <button
+              onClick={toggleListening}
+              className={`btn btn-sm ${isListening ? 'btn-danger' : 'btn-secondary'}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 600,
+                fontSize: 12,
+                boxShadow: isListening ? '0 0 12px var(--color-conflict)' : 'none',
+              }}
+              title={isListening ? 'Stop live voice listening' : 'Start microphone for live speech transcription & AI classification'}
+            >
+              <span>{isListening ? '🛑' : '🎙️'}</span>
+              <span>{isListening ? 'Listening...' : 'Live Voice'}</span>
+            </button>
+          )}
           {/* Agora Voice Bridge Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', borderRight: '1px solid var(--border-subtle)' }}>
             {!isJoined ? (

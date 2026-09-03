@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useIncidentStore } from '@/stores/incidentStore';
 
 type PanelKey = 'timeline' | 'facts' | 'hypotheses' | 'decisions' | 'actionItems' | 'questions' | 'conflicts';
@@ -33,6 +34,30 @@ export function AppSidebar() {
 
   return (
     <aside className="app-sidebar">
+      {/* Back to Home navigation */}
+      <div style={{ padding: '0 14px 14px', borderBottom: '1px solid var(--border)' }}>
+        <Link
+          href="/"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span style={{ fontSize: 14 }}>←</span>
+          <span>Back to All Incidents</span>
+        </Link>
+      </div>
+
       {/* Affected Systems */}
       {incident?.affectedSystems && incident.affectedSystems.length > 0 && (
         <div style={{ padding: '12px 16px', marginBottom: 8, borderBottom: '1px solid var(--border)' }}>

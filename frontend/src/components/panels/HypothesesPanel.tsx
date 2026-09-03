@@ -3,7 +3,7 @@
 import { useIncidentStore } from '@/stores/incidentStore';
 
 export function HypothesesPanel() {
-  const { hypotheses } = useIncidentStore();
+  const { hypotheses, promoteHypothesisToFact, dismissHypothesis } = useIncidentStore();
 
   return (
     <div className="panel" id="panel-hypotheses">
@@ -15,8 +15,8 @@ export function HypothesesPanel() {
         {hypotheses.length === 0 ? (
           <div className="empty-state"><div className="empty-icon">🧪</div>No hypotheses raised</div>
         ) : (
-          hypotheses.map((h) => (
-            <div key={h.id} className="item-card hypothesis">
+          hypotheses.map((h, idx) => (
+            <div key={`${h.id}-${idx}`} className="item-card hypothesis">
               <div className="item-header">
                 <span className="item-type-badge hypothesis">Hypothesis</span>
                 {h.confidence && (
@@ -33,9 +33,21 @@ export function HypothesesPanel() {
               <div className="item-meta">
                 <span>{new Date(h.createdAt).toLocaleTimeString()}</span>
               </div>
-              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                <button className="btn btn-success btn-sm">Promote to Fact</button>
-                <button className="btn btn-ghost btn-sm">Dismiss</button>
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <button
+                  className="btn btn-success btn-sm"
+                  onClick={() => promoteHypothesisToFact(h.id)}
+                  title="Promote this hypothesis to confirmed Fact"
+                >
+                  ✓ Promote to Fact
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => dismissHypothesis(h.id)}
+                  title="Dismiss hypothesis"
+                >
+                  ✕ Dismiss
+                </button>
               </div>
             </div>
           ))
@@ -58,8 +70,8 @@ export function DecisionsPanel() {
         {decisions.length === 0 ? (
           <div className="empty-state"><div className="empty-icon">🎯</div>No decisions recorded</div>
         ) : (
-          decisions.map((d) => (
-            <div key={d.id} className="item-card decision">
+          decisions.map((d, idx) => (
+            <div key={`${d.id}-${idx}`} className="item-card decision">
               <div className="item-header">
                 <span className="item-type-badge decision">Decision</span>
               </div>
@@ -76,13 +88,13 @@ export function DecisionsPanel() {
 }
 
 export function ActionItemsPanel() {
-  const { actionItems } = useIncidentStore();
-  const active = actionItems.filter(a => a.status !== 'RESOLVED' && a.status !== 'REJECTED');
+  const { actionItems, toggleActionItemStatus } = useIncidentStore();
+  const active = actionItems.filter(a => a.status !== 'REJECTED');
 
   const statusColor = (status: string) => {
+    if (status === 'RESOLVED') return 'var(--color-fact)';
     if (status === 'IN_PROGRESS') return 'var(--color-decision)';
-    if (status === 'PENDING') return 'var(--color-hypothesis)';
-    return 'var(--color-fact)';
+    return 'var(--color-hypothesis)';
   };
 
   return (
@@ -95,22 +107,46 @@ export function ActionItemsPanel() {
         {active.length === 0 ? (
           <div className="empty-state"><div className="empty-icon">✓</div>All actions resolved</div>
         ) : (
-          active.map((item) => (
-            <div key={item.id} className="item-card action_item">
+          active.map((item, idx) => (
+            <div key={`${item.id}-${idx}`} className="item-card action_item">
               <div className="item-header">
                 <span className="item-type-badge action_item">Action</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: statusColor(item.status) }}>
-                  {item.status.replace('_', ' ')}
-                </span>
+                <button
+                  onClick={() => toggleActionItemStatus(item.id)}
+                  className="btn btn-ghost btn-sm"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: statusColor(item.status),
+                    padding: '2px 8px',
+                    border: `1px solid ${statusColor(item.status)}`,
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                  }}
+                  title="Click to cycle status (Pending → In Progress → Resolved)"
+                >
+                  {item.status.replace('_', ' ')} ↻
+                </button>
               </div>
-              <div className="item-content">{item.content}</div>
-              <div className="item-meta">
-                {item.ownerName ? (
-                  <span>👤 {item.ownerName}</span>
-                ) : (
-                  <span style={{ color: 'var(--color-conflict)' }}>⚠️ Unassigned</span>
-                )}
-                <span>· {new Date(item.createdAt).toLocaleTimeString()}</span>
+              <div className="item-content" style={{ textDecoration: item.status === 'RESOLVED' ? 'line-through' : 'none', opacity: item.status === 'RESOLVED' ? 0.6 : 1 }}>
+                {item.content}
+              </div>
+              <div className="item-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  {item.ownerName ? (
+                    <span>👤 {item.ownerName}</span>
+                  ) : (
+                    <span style={{ color: 'var(--color-conflict)' }}>⚠️ Unassigned</span>
+                  )}
+                  <span> · {new Date(item.createdAt).toLocaleTimeString()}</span>
+                </div>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: 11, padding: '2px 6px' }}
+                  onClick={() => toggleActionItemStatus(item.id)}
+                >
+                  {item.status === 'RESOLVED' ? 'Reopen' : 'Mark Done ✓'}
+                </button>
               </div>
             </div>
           ))
@@ -121,7 +157,7 @@ export function ActionItemsPanel() {
 }
 
 export function QuestionsPanel() {
-  const { questions } = useIncidentStore();
+  const { questions, answerQuestion } = useIncidentStore();
   const open = questions.filter(q => q.status === 'PENDING');
 
   return (
@@ -134,13 +170,13 @@ export function QuestionsPanel() {
         {open.length === 0 ? (
           <div className="empty-state"><div className="empty-icon">💬</div>No open questions</div>
         ) : (
-          open.map((q) => {
+          open.map((q, idx) => {
             const ageMs = Date.now() - new Date(q.createdAt).getTime();
             const ageMin = Math.floor(ageMs / 60000);
             const isStale = ageMin >= 5;
 
             return (
-              <div key={q.id} className="item-card question">
+              <div key={`${q.id}-${idx}`} className="item-card question">
                 <div className="item-header">
                   <span className="item-type-badge question">Question</span>
                   <span style={{ fontSize: 11, color: isStale ? 'var(--color-conflict)' : 'var(--text-muted)' }}>
@@ -148,8 +184,16 @@ export function QuestionsPanel() {
                   </span>
                 </div>
                 <div className="item-content">{q.content}</div>
-                <div className="item-meta">
+                <div className="item-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
                   <span>{new Date(q.createdAt).toLocaleTimeString()}</span>
+                  <button
+                    className="btn btn-success btn-sm"
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    onClick={() => answerQuestion(q.id)}
+                    title="Mark this question as answered"
+                  >
+                    ✓ Mark Answered
+                  </button>
                 </div>
               </div>
             );

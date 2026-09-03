@@ -31,19 +31,19 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export function RightPanel() {
-  const { participants, recentTranscripts, incident } = useIncidentStore();
+  const { participants, recentTranscripts, incident, interimTranscript, submitUtterance } = useIncidentStore();
   const [inputText, setInputText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
-  const { isListening, isSupported, toggleListening } = useSpeechRecognition({
+  const { isListening, isSupported, toggleListening, permissionError } = useSpeechRecognition({
     incidentId: incident?.id || 'demo',
   });
 
   // Auto-scroll transcript feed
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [recentTranscripts]);
+  }, [recentTranscripts, interimTranscript]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,15 +54,7 @@ export function RightPanel() {
     setIsSubmitting(true);
 
     try {
-      await fetch(`/api/v1/incidents/${incident?.id || 'demo'}/utterances`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content,
-          speakerName: 'Alex Chen',
-          speakerRole: 'INCIDENT_COMMANDER',
-        }),
-      });
+      await submitUtterance(content, 'Alex Chen', 'INCIDENT_COMMANDER');
     } catch (err) {
       console.error('Failed to post utterance:', err);
     } finally {
@@ -81,13 +73,13 @@ export function RightPanel() {
           Participants ({participants.length})
         </div>
 
-        {participants.map((p) => {
+        {participants.map((p, idx) => {
           const info = PARTICIPANT_NAMES[p.id] || {
             name: p.speakerLabel || `Speaker ${p.id.slice(0, 4)}`,
             initials: (p.speakerLabel || p.id).slice(0, 2).toUpperCase(),
           };
           return (
-            <div key={p.id} className="participant-item">
+            <div key={`${p.id}-${idx}`} className="participant-item">
               <div className="participant-avatar">{info.initials}</div>
               <div className="participant-info">
                 <div className="participant-name">{info.name}</div>
@@ -164,7 +156,36 @@ export function RightPanel() {
                 </div>
               </div>
             ))}
+
+            {/* Live Interim Speech Bubble */}
+            {isListening && (
+              <div className="transcript-entry" style={{ borderLeft: '2px solid var(--color-hypothesis)', background: 'hsla(42, 100%, 60%, 0.08)' }}>
+                <div className="transcript-speaker" style={{ color: 'var(--color-hypothesis)' }}>
+                  Alex (Live Speech)
+                </div>
+                <div className="transcript-text" style={{ fontStyle: 'italic', color: 'var(--text-primary)' }}>
+                  {interimTranscript || 'Listening to your voice...'}
+                  <span style={{ display: 'inline-block', width: 4, height: 12, marginLeft: 4, background: 'var(--color-hypothesis)', animation: 'pulse 0.8s infinite' }} />
+                </div>
+              </div>
+            )}
+
             <div ref={transcriptEndRef} />
+          </div>
+        )}
+
+        {/* Permission Error Notification */}
+        {permissionError && (
+          <div style={{
+            fontSize: 11,
+            color: 'var(--color-conflict)',
+            background: 'hsla(0, 85%, 62%, 0.1)',
+            padding: '6px 8px',
+            borderRadius: 6,
+            marginTop: 8,
+            border: '1px solid hsla(0, 85%, 62%, 0.3)',
+          }}>
+            ⚠️ {permissionError}
           </div>
         )}
 
@@ -172,7 +193,7 @@ export function RightPanel() {
         <form onSubmit={handleSubmit} style={{ marginTop: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
           <input
             type="text"
-            placeholder={isListening ? "Listening... speak now" : "Speak or type an update..."}
+            placeholder={isListening ? "Listening... speak now or type" : "Speak or type an update..."}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             disabled={isSubmitting}
@@ -193,7 +214,11 @@ export function RightPanel() {
               onClick={toggleListening}
               className={`btn btn-sm ${isListening ? 'btn-danger' : 'btn-secondary'}`}
               title={isListening ? "Stop live voice listening" : "Start live voice transcription"}
-              style={{ padding: '5px 8px', fontSize: 13 }}
+              style={{
+                padding: '5px 8px',
+                fontSize: 13,
+                boxShadow: isListening ? '0 0 8px var(--color-conflict)' : 'none',
+              }}
             >
               {isListening ? '🛑' : '🎙️'}
             </button>

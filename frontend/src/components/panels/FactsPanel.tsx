@@ -36,8 +36,8 @@ export function FactsPanel() {
             No facts confirmed yet
           </div>
         ) : (
-          confirmed.map((fact) => (
-            <div key={fact.id} className="item-card fact">
+          confirmed.map((fact, idx) => (
+            <div key={`${fact.id}-${idx}`} className="item-card fact">
               <div className="item-header">
                 <span className="item-type-badge fact">Fact</span>
                 <ConfidenceBadge confidence={fact.confidence} />

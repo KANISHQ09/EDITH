@@ -3,7 +3,7 @@
 import { useIncidentStore } from '@/stores/incidentStore';
 
 export function ConflictsPanel() {
-  const { conflicts, resolveConflict } = useIncidentStore();
+  const { conflicts, resolveConflict, dismissConflict } = useIncidentStore();
   const open = conflicts.filter(c => c.status === 'OPEN');
 
   return (
@@ -11,7 +11,7 @@ export function ConflictsPanel() {
       <div className="panel-header">
         <div className="panel-title" style={{ color: open.length > 0 ? 'var(--color-conflict)' : undefined }}>
           <span className="icon">⚠️</span>
-          Conflicts
+          Conflicts &amp; Contradictions
           {open.length > 0 && <span style={{ fontSize: 10, opacity: 0.7 }}>— requires IC review</span>}
         </div>
         <span className="panel-count" style={{ background: open.length > 0 ? 'hsla(0,85%,62%,0.15)' : undefined, color: open.length > 0 ? 'var(--color-conflict)' : undefined }}>
@@ -22,11 +22,11 @@ export function ConflictsPanel() {
         {open.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon" style={{ color: 'var(--color-fact)' }}>✓</div>
-            No conflicting statements detected
+            No conflicting statements detected across responder updates
           </div>
         ) : (
-          open.map((conflict) => (
-            <div key={conflict.id} className="conflict-alert">
+          open.map((conflict, idx) => (
+            <div key={`${conflict.id}-${idx}`} className="conflict-alert">
               <div className="conflict-alert-header">
                 <span>⚡</span>
                 Conflicting Statements Detected
@@ -38,10 +38,17 @@ export function ConflictsPanel() {
                 <button
                   className="btn btn-success btn-sm"
                   onClick={() => resolveConflict(conflict.id)}
+                  title="Mark this conflict as resolved"
                 >
                   ✓ Mark Resolved
                 </button>
-                <button className="btn btn-ghost btn-sm">Dismiss</button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => dismissConflict(conflict.id)}
+                  title="Dismiss conflict alert"
+                >
+                  ✕ Dismiss
+                </button>
               </div>
             </div>
           ))

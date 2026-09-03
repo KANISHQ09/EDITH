@@ -1,24 +1,37 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useIncidentStore } from '@/stores/incidentStore';
 
 interface UseSpeechRecognitionOptions {
   incidentId: string;
   speakerName?: string;
   speakerRole?: string;
-  onTranscriptReceived?: (text: string) => void;
 }
 
 export function useSpeechRecognition({
   incidentId,
   speakerName = 'Alex Chen',
   speakerRole = 'INCIDENT_COMMANDER',
-  onTranscriptReceived,
 }: UseSpeechRecognitionOptions) {
-  const [isListening, setIsListening] = useState(false);
+  const {
+    isSpeechListening,
+    setIsSpeechListening,
+    interimTranscript,
+    setInterimTranscript,
+    submitUtterance,
+  } = useIncidentStore();
+
   const [isSupported, setIsSupported] = useState(true);
   const [lastTranscript, setLastTranscript] = useState('');
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(isSpeechListening);
+
+  useEffect(() => {
+    isListeningRef.current = isSpeechListening;
+  }, [isSpeechListening]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -33,53 +46,57 @@ export function useSpeechRecognition({
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true; // Enables live streaming words as you speak!
     recognition.lang = 'en-US';
 
-    recognition.onresult = async (event: any) => {
-      const results = event.results;
-      const latestResult = results[results.length - 1];
-      if (latestResult.isFinal) {
-        const text = latestResult[0].transcript.trim();
-        if (text) {
-          setLastTranscript(text);
-          onTranscriptReceived?.(text);
+    recognition.onresult = (event: any) => {
+      let interim = '';
+      let finalSpeech = '';
 
-          // Submit to backend
-          try {
-            await fetch(`/api/v1/incidents/${incidentId}/utterances`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                content: text,
-                speakerName,
-                speakerRole,
-              }),
-            });
-          } catch (err) {
-            console.error('Failed to post speech utterance:', err);
-          }
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i];
+        const transcriptText = item[0]?.transcript || '';
+        if (item.isFinal) {
+          finalSpeech += transcriptText;
+        } else {
+          interim += transcriptText;
         }
+      }
+
+      if (interim) {
+        setInterimTranscript(interim.trim());
+      }
+
+      if (finalSpeech.trim()) {
+        const finalTrimmed = finalSpeech.trim();
+        setInterimTranscript('');
+        setLastTranscript(finalTrimmed);
+
+        // Submit utterance to store and backend
+        submitUtterance(finalTrimmed, speakerName, speakerRole);
       }
     };
 
     recognition.onerror = (event: any) => {
-      // Don't crash on 'no-speech' or 'aborted'
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setPermissionError('Microphone permission denied. Please allow microphone access in your browser.');
+        setIsSpeechListening(false);
+      } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
         console.warn('[Speech Recognition] Error:', event.error);
       }
     };
 
     recognition.onend = () => {
-      // If user intended to keep listening, restart
-      if (recognitionRef.current && isListening) {
+      // If user intended to keep listening, auto-restart continuous stream
+      if (recognitionRef.current && isListeningRef.current) {
         try {
           recognition.start();
         } catch {
-          setIsListening(false);
+          setIsSpeechListening(false);
         }
       } else {
-        setIsListening(false);
+        setIsSpeechListening(false);
+        setInterimTranscript('');
       }
     };
 
@@ -87,41 +104,54 @@ export function useSpeechRecognition({
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.abort();
+        try {
+          recognitionRef.current.abort();
+        } catch {}
       }
     };
-  }, [incidentId, speakerName, speakerRole, onTranscriptReceived, isListening]);
+  }, [incidentId, speakerName, speakerRole, setIsSpeechListening, setInterimTranscript, submitUtterance]);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
+    setPermissionError(null);
+    if (recognitionRef.current && !isSpeechListening) {
       try {
         recognitionRef.current.start();
-        setIsListening(true);
-      } catch (err) {
-        console.warn('Speech recognition could not start:', err);
+        setIsSpeechListening(true);
+      } catch (err: any) {
+        // If already started, just update state
+        if (err?.name === 'InvalidStateError') {
+          setIsSpeechListening(true);
+        } else {
+          console.warn('Speech recognition could not start:', err);
+        }
       }
     }
-  }, [isListening]);
+  }, [isSpeechListening, setIsSpeechListening]);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
-      setIsListening(false);
-      recognitionRef.current.stop();
+    if (recognitionRef.current && isSpeechListening) {
+      setIsSpeechListening(false);
+      setInterimTranscript('');
+      try {
+        recognitionRef.current.stop();
+      } catch {}
     }
-  }, [isListening]);
+  }, [isSpeechListening, setIsSpeechListening, setInterimTranscript]);
 
   const toggleListening = useCallback(() => {
-    if (isListening) {
+    if (isSpeechListening) {
       stopListening();
     } else {
       startListening();
     }
-  }, [isListening, startListening, stopListening]);
+  }, [isSpeechListening, startListening, stopListening]);
 
   return {
-    isListening,
+    isListening: isSpeechListening,
     isSupported,
     lastTranscript,
+    interimTranscript,
+    permissionError,
     startListening,
     stopListening,
     toggleListening,

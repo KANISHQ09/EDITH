@@ -6,7 +6,7 @@ import { useIncidentStore } from '@/stores/incidentStore';
 function useTimelineEntries() {
   const { facts, hypotheses, decisions, actionItems, questions, conflicts, incident } = useIncidentStore();
 
-  const entries = [
+  const rawEntries = [
     ...(incident ? [{
       id: 'incident-created',
       ts: incident.startTs,
@@ -23,7 +23,13 @@ function useTimelineEntries() {
     ...conflicts.map(c => ({ id: c.id, ts: c.createdAt, type: 'CONFLICT' as const, title: c.description, label: 'Conflict', dotClass: 'conflict' })),
   ].sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
 
-  return entries;
+  const seen = new Set<string>();
+  return rawEntries.filter(entry => {
+    const key = `${entry.type}-${entry.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function TimelinePanel() {
@@ -44,7 +50,7 @@ export function TimelinePanel() {
         ) : (
           <div className="timeline">
             {entries.map((entry, idx) => (
-              <div key={entry.id} className="timeline-item">
+              <div key={`${entry.type}-${entry.id}-${idx}`} className="timeline-item">
                 <div className="timeline-ts">
                   {new Date(entry.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
