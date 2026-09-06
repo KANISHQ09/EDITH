@@ -39,7 +39,7 @@ export function LandingFooter() {
           className="btn-cobalt"
           style={{ padding: '14px 28px', fontSize: 13 }}
         >
-          <span>LAUNCH LIVE WAR ROOM</span>
+          <span>LAUNCH LIVE INCIDENT ROOM</span>
           <span style={{ fontSize: 16 }}>→</span>
         </Link>
       </div>
@@ -55,7 +55,7 @@ export function LandingFooter() {
               <a href="#voices" className="footer-link">AI Personas</a>
               <a href="#integrations" className="footer-link">Telemetry Connectors</a>
               <a href="#architecture" className="footer-link">State Machine</a>
-              <a href="#incidents" className="footer-link">Incident War Rooms</a>
+              <a href="#incidents" className="footer-link">Incident Rooms</a>
             </div>
           </div>
 

@@ -63,7 +63,7 @@ export async function classifyUtteranceWithGemini(
   speakerRole: string = 'RESPONDER'
 ): Promise<GeminiClassificationResult> {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
   if (!apiKey) {
     logger.warn({ message: 'No GEMINI_API_KEY set, defaulting to STATUS_UPDATE', service: 'api' });

@@ -7,7 +7,7 @@ import { query, withTransaction } from '../db/pool';
 import { logger } from '../lib/logger';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 import { classifyUtteranceWithGemini } from '../services/geminiClassifier';
-import { getRedis } from '../lib/redis';
+import { safePublish } from '../lib/redis';
 import { KAFKA_TOPICS } from '@vaic/shared';
 import { detectFactConflict } from '../services/conflictDetector';
 import { generateSpokenBriefing } from '../services/briefingGenerator';
@@ -30,11 +30,36 @@ router.use(authenticate);
 // Validation Schemas
 // ─────────────────────────────────────────────────────────────
 
+const IntegrationsConfigSchema = z.object({
+  elevenLabsApiKey: z.string().optional().nullable().or(z.literal('')),
+  elevenLabsVoiceId: z.string().optional().nullable().or(z.literal('')),
+  slackWebhookUrl: z.string().optional().nullable().or(z.literal('')),
+  slackChannel: z.string().optional().nullable().or(z.literal('')),
+  jiraBaseUrl: z.string().optional().nullable().or(z.literal('')),
+  jiraProjectKey: z.string().optional().nullable().or(z.literal('')),
+  jiraApiToken: z.string().optional().nullable().or(z.literal('')),
+  pagerdutyRoutingKey: z.string().optional().nullable().or(z.literal('')),
+});
+
 const CreateIncidentSchema = z.object({
   title: z.string().min(1).max(255),
   severity: z.enum(['P1', 'P2', 'P3', 'P4']).default('P2'),
-  conferenceUrl: z.string().url().optional(),
+  conferenceUrl: z.string().url().optional().nullable().or(z.literal('')),
   affectedSystems: z.array(z.string()).default([]),
+  description: z.string().optional(),
+  leadName: z.string().optional(),
+  initialFact: z.string().optional(),
+  integrations: IntegrationsConfigSchema.optional(),
+});
+
+const SimpleContentSchema = z.object({
+  content: z.string().min(1),
+});
+
+const CreateActionItemSchema = z.object({
+  content: z.string().min(1),
+  ownerName: z.string().optional(),
+  dueHint: z.string().optional(),
 });
 
 const UpdateActionItemSchema = z.object({
@@ -79,24 +104,56 @@ router.get('/', requireAnyAuthenticated, async (req: AuthenticatedRequest, res) 
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/v1/incidents
-// Create a new incident
+// Create a new incident with optional description, conferenceUrl, leadName, initialFact
 // ─────────────────────────────────────────────────────────────
 router.post('/', requireIC, async (req: AuthenticatedRequest, res) => {
   const body = CreateIncidentSchema.parse(req.body);
   const incidentId = uuidv4();
+  const effectiveConferenceUrl = body.conferenceUrl && body.conferenceUrl.trim().length > 0 ? body.conferenceUrl.trim() : null;
+
+  const settingsObj: Record<string, any> = {};
+  if (body.description && body.description.trim()) {
+    settingsObj.description = body.description.trim();
+  }
+  if (body.leadName && body.leadName.trim()) {
+    settingsObj.leadName = body.leadName.trim();
+  }
+  if (body.integrations) {
+    settingsObj.integrations = body.integrations;
+  }
 
   await withTransaction(async (client) => {
     await client.query(
-      `INSERT INTO incidents (id, org_id, title, severity, status, conference_url, affected_systems)
-       VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6)`,
-      [incidentId, req.user!.orgId, body.title, body.severity, body.conferenceUrl ?? null, body.affectedSystems]
+      `INSERT INTO incidents (id, org_id, title, severity, status, conference_url, affected_systems, settings)
+       VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6, $7)`,
+      [incidentId, req.user!.orgId, body.title, body.severity, effectiveConferenceUrl, body.affectedSystems, JSON.stringify(settingsObj)]
     );
+
+    // If initialFact was provided, seed it into facts table
+    if (body.initialFact && body.initialFact.trim()) {
+      const factId = uuidv4();
+      await client.query(
+        `INSERT INTO facts (id, incident_id, content, status, confirmed_by, created_at)
+         VALUES ($1, $2, $3, 'CONFIRMED', $4, NOW())`,
+        [factId, incidentId, body.initialFact.trim(), req.user!.userId]
+      );
+    }
+
+    // If leadName was provided, register them as the initial Incident Commander participant
+    if (body.leadName && body.leadName.trim()) {
+      const partId = uuidv4();
+      await client.query(
+        `INSERT INTO participants (id, incident_id, speaker_label, role, joined_at)
+         VALUES ($1, $2, $3, 'INCIDENT_COMMANDER', NOW())`,
+        [partId, incidentId, body.leadName.trim()]
+      );
+    }
 
     // Audit log
     await client.query(
       `INSERT INTO audit_log (incident_id, actor_id, action, details)
        VALUES ($1, $2, 'INCIDENT_CREATED', $3)`,
-      [incidentId, req.user!.userId, JSON.stringify({ title: body.title, severity: body.severity })]
+      [incidentId, req.user!.userId, JSON.stringify({ title: body.title, severity: body.severity, leadName: body.leadName })]
     );
   });
 
@@ -142,6 +199,38 @@ router.get('/:id', requireAnyAuthenticated, async (req: AuthenticatedRequest, re
 });
 
 // ─────────────────────────────────────────────────────────────
+// PATCH /api/v1/incidents/:id/integrations
+// Update ElevenLabs, Slack, Jira, PagerDuty integrations
+// ─────────────────────────────────────────────────────────────
+router.patch('/:id/integrations', requireResponder, async (req: AuthenticatedRequest, res) => {
+  const incident = await getIncidentOrThrow(req.params.id, req.user!.orgId);
+  const integrations = IntegrationsConfigSchema.parse(req.body);
+  const currentSettings = ((incident as any).settings || {}) as Record<string, any>;
+  const updatedSettings = {
+    ...currentSettings,
+    integrations: {
+      ...(currentSettings.integrations || {}),
+      ...integrations,
+    },
+  };
+
+  await query('UPDATE incidents SET settings = $1, updated_at = NOW() WHERE id = $2', [
+    JSON.stringify(updatedSettings),
+    req.params.id,
+  ]);
+
+  await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+    incidentId: req.params.id,
+    deltaType: 'INTEGRATIONS_UPDATED',
+    payload: updatedSettings.integrations,
+    version: 1,
+    timestamp: new Date().toISOString(),
+  }));
+
+  res.json({ data: { integrations: updatedSettings.integrations } });
+});
+
+// ─────────────────────────────────────────────────────────────
 // POST /api/v1/incidents/:id/resolve
 // Declare incident resolved and generate executive Post-Mortem ISR
 // ─────────────────────────────────────────────────────────────
@@ -182,7 +271,6 @@ router.post('/:id/resolve', requireIC, async (req: AuthenticatedRequest, res) =>
     [JSON.stringify(reportMarkdown), req.params.id]
   );
 
-  const redis = await getRedis();
   const resolveDelta = {
     incidentId: req.params.id,
     deltaType: 'INCIDENT_RESOLVED',
@@ -194,12 +282,35 @@ router.post('/:id/resolve', requireIC, async (req: AuthenticatedRequest, res) =>
     },
     timestamp: new Date().toISOString(),
   };
-  await redis.publish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify(resolveDelta));
+  await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify(resolveDelta));
 
   res.json({
     data: {
       message: 'Incident resolved successfully',
       reportMarkdown,
+    },
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// DELETE /api/v1/incidents/:id
+// Delete an incident war room and cascade-delete all related telemetry
+// ─────────────────────────────────────────────────────────────
+router.delete('/:id', requireAnyAuthenticated, async (req: AuthenticatedRequest, res) => {
+  const incident = await getIncidentOrThrow(req.params.id, req.user!.orgId);
+  await query('DELETE FROM incidents WHERE id = $1', [req.params.id]);
+
+  await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+    incidentId: req.params.id,
+    deltaType: 'INCIDENT_DELETED',
+    payload: { id: req.params.id },
+    timestamp: new Date().toISOString(),
+  }));
+
+  res.json({
+    data: {
+      message: `Incident "${(incident as any).title}" deleted successfully`,
+      id: req.params.id,
     },
   });
 });
@@ -229,7 +340,64 @@ router.post('/:id/facts', requireResponder, async (req: AuthenticatedRequest, re
   );
 
   const [fact] = await query('SELECT * FROM facts WHERE id = $1', [factId]);
+
+  await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+    incidentId: req.params.id,
+    deltaType: 'FACT_CONFIRMED',
+    payload: fact,
+    version: 1,
+    timestamp: new Date().toISOString(),
+  }));
+
   res.status(201).json({ data: fact });
+});
+
+router.post('/:id/hypotheses', requireResponder, async (req: AuthenticatedRequest, res) => {
+  await getIncidentOrThrow(req.params.id, req.user!.orgId);
+  const body = SimpleContentSchema.parse(req.body);
+  const hypId = uuidv4();
+
+  await query(
+    `INSERT INTO hypotheses (id, incident_id, content, status, created_at)
+     VALUES ($1, $2, $3, 'PENDING', NOW())`,
+    [hypId, req.params.id, body.content]
+  );
+
+  const [hyp] = await query('SELECT * FROM hypotheses WHERE id = $1', [hypId]);
+
+  await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+    incidentId: req.params.id,
+    deltaType: 'HYPOTHESIS_CREATED',
+    payload: hyp,
+    version: 1,
+    timestamp: new Date().toISOString(),
+  }));
+
+  res.status(201).json({ data: hyp });
+});
+
+router.post('/:id/decisions', requireResponder, async (req: AuthenticatedRequest, res) => {
+  await getIncidentOrThrow(req.params.id, req.user!.orgId);
+  const body = SimpleContentSchema.parse(req.body);
+  const decId = uuidv4();
+
+  await query(
+    `INSERT INTO decisions (id, incident_id, content, decided_by, created_at)
+     VALUES ($1, $2, $3, $4, NOW())`,
+    [decId, req.params.id, body.content, req.user!.userId]
+  );
+
+  const [decision] = await query('SELECT * FROM decisions WHERE id = $1', [decId]);
+
+  await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+    incidentId: req.params.id,
+    deltaType: 'DECISION_CREATED',
+    payload: decision,
+    version: 1,
+    timestamp: new Date().toISOString(),
+  }));
+
+  res.status(201).json({ data: decision });
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -246,6 +414,39 @@ router.get('/:id/action-items', requireAnyAuthenticated, async (req: Authenticat
     [req.params.id]
   );
   res.json({ data: items });
+});
+
+router.post('/:id/action-items', requireResponder, async (req: AuthenticatedRequest, res) => {
+  await getIncidentOrThrow(req.params.id, req.user!.orgId);
+  const body = CreateActionItemSchema.parse(req.body);
+  const itemId = uuidv4();
+
+  await query(
+    `INSERT INTO action_items (id, incident_id, content, status, due_hint)
+     VALUES ($1, $2, $3, 'PENDING', $4)`,
+    [itemId, req.params.id, body.content, body.dueHint ?? null]
+  );
+
+  const [item] = await query('SELECT * FROM action_items WHERE id = $1', [itemId]);
+
+  try {
+    await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+      incidentId: req.params.id,
+      deltaType: 'ACTION_ITEM_CREATED',
+      payload: {
+        id: itemId,
+        content: body.content,
+        ownerName: body.ownerName || 'Alex Rivera',
+        status: 'PENDING',
+      },
+      version: 1,
+      timestamp: new Date().toISOString(),
+    }));
+  } catch (err) {
+    logger.warn({ message: 'Failed to publish action item to Redis', err });
+  }
+
+  res.status(201).json({ data: item });
 });
 
 router.patch('/:id/action-items/:itemId', requireResponder, async (req: AuthenticatedRequest, res) => {
@@ -274,6 +475,21 @@ router.patch('/:id/action-items/:itemId', requireResponder, async (req: Authenti
 
   const [item] = await query('SELECT * FROM action_items WHERE id = $1', [req.params.itemId]);
   if (!item) throw NotFoundError('Action item not found');
+
+  try {
+    await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+      incidentId: req.params.id,
+      deltaType: 'ACTION_ITEM_STATUS_CHANGED',
+      payload: {
+        actionItemId: req.params.itemId,
+        newStatus: body.status || item.status,
+      },
+      version: 1,
+      timestamp: new Date().toISOString(),
+    }));
+  } catch (err) {
+    logger.warn({ message: 'Failed to publish action item update to Redis', err });
+  }
 
   res.json({ data: item });
 });
@@ -383,18 +599,57 @@ router.get('/:id/report', requireAnyAuthenticated, async (req: AuthenticatedRequ
     throw BadRequestError('Incident Summary Report is only available after the incident is resolved');
   }
 
-  // In production, the Report Generator stores the ISR URL in incident settings
   const settings = (incident as any).settings as Record<string, unknown>;
+  const reportMarkdown = settings?.isrReport as string | undefined;
   const reportUrl = settings?.isrUrl as string | undefined;
 
-  if (!reportUrl) {
+  if (!reportMarkdown && !reportUrl) {
     res.status(202).json({
       data: { message: 'ISR is being generated. Check back in a moment.' },
     });
     return;
   }
 
-  res.json({ data: { reportUrl } });
+  res.json({ data: { reportMarkdown, reportUrl } });
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/v1/incidents/:id/participants
+// Register a joining participant / user name
+// ─────────────────────────────────────────────────────────────
+router.post('/:id/participants', requireAnyAuthenticated, async (req: AuthenticatedRequest, res) => {
+  await getIncidentOrThrow(req.params.id, req.user!.orgId);
+  const { name, role } = req.body;
+  const participantId = uuidv4();
+  const speakerLabel = (typeof name === 'string' && name.trim()) ? name.trim() : 'Anonymous Responder';
+  const participantRole = role || 'RESPONDER';
+
+  await query(
+    `INSERT INTO participants (id, incident_id, speaker_label, role, joined_at)
+     VALUES ($1, $2, $3, $4, NOW())`,
+    [participantId, req.params.id, speakerLabel, participantRole]
+  );
+
+  const [participant] = await query('SELECT * FROM participants WHERE id = $1', [participantId]);
+
+  try {
+    await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+      incidentId: req.params.id,
+      deltaType: 'PARTICIPANT_JOINED',
+      payload: {
+        id: participantId,
+        speakerLabel,
+        role: participantRole,
+        joinedAt: new Date().toISOString(),
+      },
+      version: 1,
+      timestamp: new Date().toISOString(),
+    }));
+  } catch (err) {
+    logger.warn({ message: 'Failed to publish participant join to Redis', err });
+  }
+
+  res.status(201).json({ data: participant || { id: participantId, speakerLabel, role: participantRole } });
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -470,11 +725,32 @@ router.post('/:id/utterances', requireAnyAuthenticated, async (req: Authenticate
   const effectiveSpeakerRole = speakerRole || req.user?.role || 'INCIDENT_COMMANDER';
   const entryId = uuidv4();
 
-  // 1. Insert into PostgreSQL transcript_entries
+  // 1. Link or create participant for speaker attribution
+  let participantId: string | null = null;
+  try {
+    const existing = await query(
+      `SELECT id FROM participants WHERE incident_id = $1 AND speaker_label = $2 LIMIT 1`,
+      [req.params.id, effectiveSpeakerName]
+    );
+    if (existing.length > 0) {
+      participantId = (existing[0] as any).id as string;
+    } else {
+      participantId = uuidv4();
+      await query(
+        `INSERT INTO participants (id, incident_id, speaker_label, role, joined_at)
+         VALUES ($1, $2, $3, 'RESPONDER', NOW())`,
+        [participantId, req.params.id, effectiveSpeakerName]
+      );
+    }
+  } catch (err) {
+    logger.warn({ message: 'Could not link participant to transcript', err });
+  }
+
+  // Insert into PostgreSQL transcript_entries
   await query(
-    `INSERT INTO transcript_entries (id, incident_id, content, start_ts, end_ts, confidence)
-     VALUES ($1, $2, $3, NOW(), NOW(), 0.98)`,
-    [entryId, req.params.id, content.trim()]
+    `INSERT INTO transcript_entries (id, incident_id, participant_id, content, start_ts, end_ts, confidence)
+     VALUES ($1, $2, $3, $4, NOW(), NOW(), 0.98)`,
+    [entryId, req.params.id, participantId, content.trim()]
   );
 
   const transcriptData = {
@@ -487,10 +763,8 @@ router.post('/:id/utterances', requireAnyAuthenticated, async (req: Authenticate
     confidence: 0.98,
   };
 
-  const redis = await getRedis();
-
   // 2. Broadcast new.transcript to all connected WebSocket clients
-  await redis.publish('new.transcript', JSON.stringify({
+  await safePublish('new.transcript', JSON.stringify({
     type: 'new.transcript',
     incidentId: req.params.id,
     data: transcriptData,
@@ -573,7 +847,7 @@ router.post('/:id/utterances', requireAnyAuthenticated, async (req: Authenticate
               },
               timestamp: new Date().toISOString(),
             };
-            await redis.publish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify(conflictDelta));
+            await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify(conflictDelta));
           }
         }
       } else if (classification.type === 'HYPOTHESIS') {
@@ -623,8 +897,8 @@ router.post('/:id/utterances', requireAnyAuthenticated, async (req: Authenticate
       timestamp: new Date().toISOString(),
     };
 
-    await redis.publish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify(deltaPayload));
-    await redis.publish(`${KAFKA_TOPICS.STATE_DELTAS}.${req.params.id}`, JSON.stringify(deltaPayload));
+    await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify(deltaPayload));
+    await safePublish(`${KAFKA_TOPICS.STATE_DELTAS}.${req.params.id}`, JSON.stringify(deltaPayload));
   }
 
   res.status(201).json({
@@ -633,6 +907,86 @@ router.post('/:id/utterances', requireAnyAuthenticated, async (req: Authenticate
       classification,
     },
   });
+});
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/v1/incidents/:id/query
+// Ask VAIC Copilot questions based on active incident context
+// ─────────────────────────────────────────────────────────────
+router.post('/:id/query', requireAnyAuthenticated, async (req: AuthenticatedRequest, res) => {
+  await getIncidentOrThrow(req.params.id, req.user!.orgId);
+  const { query: userQuery } = req.body;
+  if (!userQuery || typeof userQuery !== 'string') {
+    throw BadRequestError('Query is required');
+  }
+
+  const [facts, hypotheses, decisions, actionItems] = await Promise.all([
+    query('SELECT content FROM facts WHERE incident_id = $1', [req.params.id]),
+    query('SELECT content FROM hypotheses WHERE incident_id = $1', [req.params.id]),
+    query('SELECT content FROM decisions WHERE incident_id = $1', [req.params.id]),
+    query(`SELECT content, status FROM action_items WHERE incident_id = $1`, [req.params.id]),
+  ]);
+
+  const factsStr = facts.map((f: any, i: number) => `${i + 1}. ${f.content}`).join('\n');
+  const hypStr = hypotheses.map((h: any, i: number) => `${i + 1}. ${h.content}`).join('\n');
+  const decStr = decisions.map((d: any, i: number) => `${i + 1}. ${d.content}`).join('\n');
+  const actStr = actionItems.map((a: any, i: number) => `${i + 1}. [${a.status}] ${a.content}`).join('\n');
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+
+  if (!apiKey) {
+    res.json({ data: { answer: `Based on current telemetry: We have ${facts.length} facts and ${actionItems.length} action items tracked.` } });
+    return;
+  }
+
+  const prompt = `You are EDITH (Even Dead, I'm The Hero / Virtual AI Co-Investigator), an elite, tactical incident response AI co-pilot.
+Current Incident State:
+[Confirmed Facts]:
+${factsStr || 'None yet'}
+
+[Active Hypotheses]:
+${hypStr || 'None yet'}
+
+[Decisions Made]:
+${decStr || 'None yet'}
+
+[Action Items]:
+${actStr || 'None yet'}
+
+User Question: "${userQuery}"
+
+CRITICAL INSTRUCTIONS:
+1. Provide ONLY the direct spoken answer in 1 to 3 concise, clear sentences.
+2. DO NOT repeat or echo the user's question.
+3. NEVER start with "A:", "Answer:", "Q:", "Sure", or markdown formatting like asterisks or backticks.
+4. Speak directly as EDITH with situational authority.`;
+
+  try {
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 250 },
+        }),
+      }
+    );
+    const geminiData: any = await geminiRes.json();
+    let answer = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'No answer generated.';
+    
+    // Sanitize any remaining prefixes or markdown artifacts
+    answer = answer
+      .replace(/^(\s*(\*\*A:\*\*|\*\*Answer:\*\*|A:|Answer:)\s*)/i, '')
+      .replace(/[`*#_]/g, '')
+      .trim();
+
+    res.json({ data: { answer } });
+  } catch (err: any) {
+    res.json({ data: { answer: `EDITH is currently tracking ${facts.length} confirmed facts and ${hypotheses.length} hypotheses.` } });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────

@@ -6,22 +6,29 @@ import { useIncidentStore } from '@/stores/incidentStore';
 import { useElapsedTime } from '@/hooks/useElapsedTime';
 import { useAgoraVoice } from '@/hooks/useAgoraVoice';
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { ReportModal } from '@/components/ReportModal';
+import { UserProfileModal } from '@/components/UserProfileModal';
 
 export function AppHeader() {
-  const { incident, wsConnected, participants, setIncident } = useIncidentStore();
+  const {
+    incident,
+    wsConnected,
+    participants,
+    setIncident,
+    userName,
+    userRole,
+    warRoomView,
+    setWarRoomView,
+  } = useIncidentStore();
   const elapsed = useElapsedTime(incident?.startTs);
   const [briefingText, setBriefingText] = useState<string | null>(null);
   const [isBriefingLoading, setIsBriefingLoading] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   const [reportMarkdown, setReportMarkdown] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const { speak, stop: stopSpeaking, isSpeaking } = useVoiceSynthesis();
-  const { isListening, toggleListening, isSupported: isSpeechSupported } = useSpeechRecognition({
-    incidentId: incident?.id || 'demo',
-  });
 
   const {
     isJoined,
@@ -34,8 +41,6 @@ export function AppHeader() {
     leaveVoice,
     toggleMute,
   } = useAgoraVoice(incident?.id || 'demo');
-
-  const speakerCount = participants.filter(p => !p.leftAt).length;
 
   const handleRequestBriefing = async () => {
     if (isBriefingLoading) return;
@@ -88,224 +93,229 @@ export function AppHeader() {
     }
   };
 
+  const title = incident?.title || 'Network Intrusion – DB Server';
+  const incidentCode = incident?.id && incident.id.length < 24 ? incident.id : 'INC-2025-06-19-0007';
+  const severity = incident?.severity || 'HIGH';
+  const isLive = (incident?.status || 'ACTIVE') === 'ACTIVE';
+
+  const formatStarted = (ts?: string) => {
+    if (!ts) return '19 Jun 2025, 10:24 AM';
+    try {
+      const d = new Date(ts);
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
+        ', ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '19 Jun 2025, 10:24 AM';
+    }
+  };
+
   return (
     <>
-      <header className="app-header">
-        {/* Brand & Back Navigation */}
-        <div className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link
-            href="/"
-            className="btn btn-secondary btn-sm"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontWeight: 600,
-              fontSize: 12,
-              padding: '6px 12px',
-              textDecoration: 'none',
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border)',
-            }}
-            title="Return to Incidents Dashboard"
-          >
-            <span>←</span>
-            <span>All Incidents</span>
-          </Link>
-          <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'inherit' }}>
-            <div className="logo-dot" />
-            <span style={{ fontWeight: 800, letterSpacing: 0.5 }}>VAIC</span>
-          </Link>
+      <header className="vaic-topbar">
+        {/* Left: Incident Title, Badges, ID */}
+        <div>
+          <div className="vaic-title-row">
+            <h1 className="vaic-incident-title">{title}</h1>
+            <span className="vaic-pill-high">{severity}</span>
+            {isLive && (
+              <span className="vaic-pill-live">
+                <span className="vaic-live-dot" /> LIVE
+              </span>
+            )}
+          </div>
+          <div className="vaic-incident-id">{incidentCode}</div>
         </div>
 
-        {/* Incident Info */}
-        {incident && (
-          <div className="header-incident-badge">
-            <span className={`badge-severity ${incident.severity.toLowerCase()}`}>
-              {incident.severity}
+        {/* Right: Started, Response Time, Voice status, Bell, User Profile */}
+        <div className="vaic-topbar-right">
+          {/* Started Timestamp */}
+          <div className="vaic-meta-item" title="Incident Initiation Time">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>
+              Started <strong style={{ color: '#0F172A', marginLeft: 4 }}>{formatStarted(incident?.startTs)}</strong>
             </span>
-            <span style={{ fontSize: 13, fontWeight: 600, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {incident.title}
-            </span>
-            <span className={`badge-status ${incident.status.toLowerCase()}`}>
-              {incident.status}
-            </span>
-            <span className="elapsed-timer">{elapsed}</span>
           </div>
-        )}
 
-        {/* Status Controls */}
-        <div className="header-actions">
-          {/* Live Voice Mic Button */}
-          {isSpeechSupported && (
-            <button
-              onClick={toggleListening}
-              className={`btn btn-sm ${isListening ? 'btn-danger' : 'btn-secondary'}`}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontWeight: 600,
-                fontSize: 12,
-                boxShadow: isListening ? '0 0 12px var(--color-conflict)' : 'none',
-              }}
-              title={isListening ? 'Stop live voice listening' : 'Start microphone for live speech transcription & AI classification'}
-            >
-              <span>{isListening ? '🛑' : '🎙️'}</span>
-              <span>{isListening ? 'Listening...' : 'Live Voice'}</span>
-            </button>
-          )}
-          {/* Agora Voice Bridge Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', borderRight: '1px solid var(--border-subtle)' }}>
+          {/* Response / Elapsed Time */}
+          <div className="vaic-meta-item" title="Elapsed Active Response Time">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>
+              Response Time <strong style={{ color: '#0F172A', marginLeft: 4 }}>{elapsed || '00:42:18'}</strong>
+            </span>
+          </div>
+
+          {/* Live Agora Voice controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {!isJoined ? (
               <button
-                onClick={joinVoice}
+                type="button"
+                onClick={async () => {
+                  setWarRoomView('meet');
+                  await joinVoice();
+                }}
                 disabled={isConnecting}
-                className="btn btn-primary btn-sm"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
-                title="Join live Agora voice room"
-              >
-                {isConnecting ? '⏳ Connecting...' : '🎙️ Join Voice Call'}
-              </button>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{
-                  display: 'inline-flex',
+                style={{
+                  display: 'flex',
                   alignItems: 'center',
                   gap: 5,
                   fontSize: 11,
                   fontWeight: 600,
-                  color: 'var(--color-fact)',
-                  background: 'hsla(150, 70%, 45%, 0.15)',
-                  padding: '3px 8px',
-                  borderRadius: 12,
+                  padding: '5px 10px',
+                  borderRadius: 8,
+                  border: '1px solid #BFDBFE',
+                  background: '#EFF6FF',
+                  color: '#2563EB',
+                  cursor: 'pointer',
+                }}
+                title="Enter Google Meet Style Incident Room Call"
+              >
+                <span>{isConnecting ? '⏳' : '📞'}</span>
+                <span>{isConnecting ? 'Connecting...' : 'Join Call'}</span>
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#16A34A',
+                  background: '#DCFCE7',
+                  padding: '4px 8px',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
                 }}>
-                  <span style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: 'var(--color-fact)',
-                    boxShadow: activeSpeakers.size > 0 ? '0 0 8px var(--color-fact)' : 'none'
-                  }} />
-                  Voice Live ({1 + remoteUsers.length})
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16A34A' }} />
+                  Call Live ({1 + remoteUsers.length})
                 </span>
-
                 <button
+                  type="button"
                   onClick={toggleMute}
-                  className={`btn btn-sm ${isMuted ? 'btn-danger' : 'btn-secondary'}`}
-                  style={{ fontSize: 12, padding: '4px 8px' }}
-                  title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                  style={{
+                    fontSize: 11,
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    border: '1px solid #E2E8F0',
+                    background: '#FFFFFF',
+                    cursor: 'pointer',
+                  }}
                 >
-                  {isMuted ? '🔇 Unmute' : '🎤 Mute'}
+                  {isMuted ? '🔇' : '🎤'}
                 </button>
-
                 <button
+                  type="button"
                   onClick={leaveVoice}
-                  className="btn btn-ghost btn-sm"
-                  style={{ fontSize: 12, padding: '4px 8px', color: 'var(--color-conflict)' }}
-                  title="Leave voice bridge"
+                  style={{
+                    fontSize: 11,
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    border: '1px solid #FCA5A5',
+                    background: '#FEE2E2',
+                    color: '#DC2626',
+                    cursor: 'pointer',
+                  }}
                 >
                   Leave
                 </button>
               </div>
             )}
-            {voiceError && (
-              <span style={{ color: 'var(--color-conflict)', fontSize: 10 }} title={voiceError}>
-                ⚠️ Voice Error
-              </span>
-            )}
           </div>
 
-          {/* Ask for Briefing */}
-          <button
-            onClick={handleRequestBriefing}
-            disabled={isBriefingLoading}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}
-            title="Ask EDITH for a 30-second spoken situation update"
+          {/* User Profile Pill: Define Name & Role */}
+          <div
+            className="vaic-user-pill"
+            style={{ cursor: 'pointer' }}
+            title="Click to edit your responder name & role"
+            onClick={() => setIsProfileModalOpen(true)}
           >
-            {isBriefingLoading ? '⏳ Synthesizing...' : isSpeaking ? '🔊 Speaking...' : '🗣️ Ask Briefing'}
-          </button>
-
-          {/* VAIC Listening Indicator */}
-          <div className="vaic-status">
-            <div className="vaic-dot" />
-            VAIC listening
+            <div className="vaic-user-avatar" style={{ background: userName ? '#2563EB' : '#64748B' }}>
+              {userName
+                ? userName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+                : '?'}
+            </div>
+            <span className="vaic-user-name">
+              {userName || 'Define Name'}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
           </div>
-
-          {/* WS Connection */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: wsConnected ? 'var(--color-fact)' : 'var(--text-muted)' }}>
-            <div style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: wsConnected ? 'var(--color-fact)' : 'var(--color-conflict)',
-            }} />
-            {wsConnected ? 'Live' : 'Reconnecting'}
-          </div>
-
-          {/* Participant Count */}
-          <button className="btn btn-ghost btn-sm">
-            👥 {speakerCount} on call
-          </button>
-
-          {/* Resolve Incident or View Report */}
-          {incident?.status === 'ACTIVE' ? (
-            <button
-              onClick={handleResolveIncident}
-              disabled={isResolving}
-              className="btn btn-success btn-sm"
-              style={{ fontWeight: 600 }}
-            >
-              {isResolving ? '⏳ Generating ISR...' : '✓ Resolve Incident'}
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsReportOpen(true)}
-              className="btn btn-primary btn-sm"
-              style={{ fontWeight: 600 }}
-            >
-              📄 View Report
-            </button>
-          )}
         </div>
       </header>
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        incidentId={incident?.id}
+      />
 
       {/* Spoken Briefing Banner */}
       {briefingText && (
         <div style={{
-          background: 'linear-gradient(90deg, #1e1e2e, #181825)',
-          borderBottom: '1px solid #fab387',
-          padding: '8px 24px',
+          background: '#EFF6FF',
+          borderBottom: '1px solid #BFDBFE',
+          padding: '10px 32px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           fontSize: 13,
-          color: '#cdd6f4',
-          zIndex: 100,
+          color: '#1E40AF',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🗣️</span>
-            <strong>EDITH Verbal Briefing:</strong>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>🔊 <strong>VAIC Spoken Briefing:</strong></span>
             <span>{briefingText}</span>
           </div>
-          <button
-            onClick={() => {
-              stopSpeaking();
-              setBriefingText(null);
-            }}
-            className="btn btn-ghost btn-sm"
-            style={{ fontSize: 12, padding: '2px 8px' }}
-          >
-            Dismiss
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => isSpeaking ? stopSpeaking() : speak(briefingText)}
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: 6,
+                background: '#2563EB',
+                color: '#FFFFFF',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {isSpeaking ? 'Stop Audio' : 'Play Again'}
+            </button>
+            <button
+              onClick={() => setBriefingText(null)}
+              style={{
+                fontSize: 11,
+                padding: '4px 8px',
+                borderRadius: 6,
+                background: 'transparent',
+                border: '1px solid #BFDBFE',
+                color: '#2563EB',
+                cursor: 'pointer',
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Post-Mortem Report Modal */}
-      <ReportModal
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        reportMarkdown={reportMarkdown || ''}
-        incidentTitle={incident?.title || 'Incident'}
-      />
+      {/* Post-Mortem ISR Modal */}
+      {isReportOpen && reportMarkdown && (
+        <ReportModal
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+          reportMarkdown={reportMarkdown}
+          incidentTitle={title}
+        />
+      )}
     </>
   );
 }

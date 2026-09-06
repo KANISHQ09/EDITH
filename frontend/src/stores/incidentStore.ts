@@ -134,6 +134,11 @@ export interface Incident {
   resolvedTs?: string;
   conferenceUrl?: string;
   affectedSystems: string[];
+  settings?: {
+    leadName?: string;
+    description?: string;
+    [key: string]: any;
+  };
 }
 
 // ─── Store ────────────────────────────────────────────────────
@@ -155,8 +160,21 @@ interface IncidentStore {
 
   isSpeechListening: boolean;
   interimTranscript: string;
+  speechLanguage: 'en-IN' | 'hi-IN' | 'en-US';
+  warRoomView: 'meet' | 'overview';
+  activeBriefing: { text: string; isSpeaking: boolean; timestamp: string } | null;
+
+  userName: string;
+  userRole: string;
+  isSidebarCollapsed: boolean;
 
   // Actions
+  setSpeechLanguage: (lang: 'en-IN' | 'hi-IN' | 'en-US') => void;
+  setWarRoomView: (view: 'meet' | 'overview') => void;
+  setActiveBriefing: (briefing: { text: string; isSpeaking: boolean; timestamp: string } | null) => void;
+  setUserName: (name: string) => void;
+  setUserRole: (role: string) => void;
+  toggleSidebarCollapse: () => void;
   setIncident: (incident: Incident) => void;
   setInitialState: (state: Partial<IncidentStore>) => void;
   applyDelta: (delta: StateDelta) => void;
@@ -212,6 +230,30 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
   vaicListening: false,
   isSpeechListening: false,
   interimTranscript: '',
+  speechLanguage: (typeof window !== 'undefined' ? (localStorage.getItem('edith_speech_lang') as any) || 'en-US' : 'en-US'),
+  warRoomView: 'meet',
+  activeBriefing: null,
+
+  userName: typeof window !== 'undefined' ? localStorage.getItem('vaic_user_name') || '' : '',
+  userRole: typeof window !== 'undefined' ? localStorage.getItem('vaic_user_role') || 'INCIDENT_COMMANDER' : 'INCIDENT_COMMANDER',
+  isSidebarCollapsed: false,
+
+  setSpeechLanguage: (lang) => {
+    if (typeof window !== 'undefined') localStorage.setItem('edith_speech_lang', lang);
+    set({ speechLanguage: lang });
+  },
+  setWarRoomView: (view) => set({ warRoomView: view }),
+  setActiveBriefing: (activeBriefing) => set({ activeBriefing }),
+
+  setUserName: (name: string) => {
+    if (typeof window !== 'undefined') localStorage.setItem('vaic_user_name', name);
+    set({ userName: name });
+  },
+  setUserRole: (role: string) => {
+    if (typeof window !== 'undefined') localStorage.setItem('vaic_user_role', role);
+    set({ userRole: role });
+  },
+  toggleSidebarCollapse: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 
   setIncident: (incident) => set({ incident }),
 
@@ -232,14 +274,16 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
 
     set((state) => {
       switch (deltaType) {
-        case 'FACT_ADDED': {
-          const id = (payload.classificationId as string) || crypto.randomUUID();
+        case 'FACT_ADDED':
+        case 'FACT_CONFIRMED': {
+          const id = (payload.classificationId as string) || (payload.id as string) || crypto.randomUUID();
           if (state.facts.some(f => f.id === id)) return state;
+          const text = (payload.summary as string) || (payload.content as string) || '';
           return {
             facts: [...state.facts, {
               id,
               incidentId: delta.incidentId,
-              content: (payload.summary as string) || '',
+              content: text,
               status: 'CONFIRMED' as ItemStatus,
               confidence: payload.confidence as number,
               createdAt: timestamp,
@@ -250,21 +294,23 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
               incidentId: delta.incidentId,
               ts: timestamp,
               type: 'FACT' as const,
-              title: (payload.summary as string) || '',
-              actorName: payload.speakerName as string,
+              title: text,
+              actorName: (payload.speakerName as string) || undefined,
             }],
           };
         }
 
-        case 'HYPOTHESIS_ADDED': {
-          const id = (payload.classificationId as string) || crypto.randomUUID();
+        case 'HYPOTHESIS_ADDED':
+        case 'HYPOTHESIS_CREATED': {
+          const id = (payload.classificationId as string) || (payload.id as string) || crypto.randomUUID();
           if (state.hypotheses.some(h => h.id === id)) return state;
+          const text = (payload.summary as string) || (payload.content as string) || '';
           return {
             hypotheses: [...state.hypotheses, {
               id,
               incidentId: delta.incidentId,
-              content: (payload.summary as string) || '',
-              status: 'PENDING' as ItemStatus,
+              content: text,
+              status: (payload.status as ItemStatus) || 'PENDING',
               confidence: payload.confidence as number,
               createdAt: timestamp,
               updatedAt: timestamp,
@@ -272,29 +318,33 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
           };
         }
 
-        case 'DECISION_ADDED': {
-          const id = (payload.classificationId as string) || crypto.randomUUID();
+        case 'DECISION_ADDED':
+        case 'DECISION_CREATED': {
+          const id = (payload.classificationId as string) || (payload.id as string) || crypto.randomUUID();
           if (state.decisions.some(d => d.id === id)) return state;
+          const text = (payload.summary as string) || (payload.content as string) || '';
           return {
             decisions: [...state.decisions, {
               id,
               incidentId: delta.incidentId,
-              content: (payload.summary as string) || '',
+              content: text,
               createdAt: timestamp,
             }],
           };
         }
 
-        case 'ACTION_ITEM_ADDED': {
-          const id = (payload.classificationId as string) || crypto.randomUUID();
+        case 'ACTION_ITEM_ADDED':
+        case 'ACTION_ITEM_CREATED': {
+          const id = (payload.classificationId as string) || (payload.id as string) || crypto.randomUUID();
           if (state.actionItems.some(a => a.id === id)) return state;
+          const text = (payload.summary as string) || (payload.content as string) || '';
           return {
             actionItems: [...state.actionItems, {
               id,
               incidentId: delta.incidentId,
-              content: (payload.summary as string) || '',
-              ownerName: (payload.actionItemOwner as string) || undefined,
-              status: 'PENDING' as ItemStatus,
+              content: text,
+              ownerName: (payload.actionItemOwner as string) || (payload.owner_name as string) || (payload.ownerName as string) || undefined,
+              status: (payload.status as ItemStatus) || 'PENDING',
               createdAt: timestamp,
               updatedAt: timestamp,
             }],

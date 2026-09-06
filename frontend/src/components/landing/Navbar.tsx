@@ -5,9 +5,10 @@ import Link from 'next/link';
 
 interface NavbarProps {
   onOpenDeclareModal: () => void;
+  isLoaded?: boolean;
 }
 
-export function Navbar({ onOpenDeclareModal }: NavbarProps) {
+export function Navbar({ onOpenDeclareModal, isLoaded = true }: NavbarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -59,7 +60,7 @@ export function Navbar({ onOpenDeclareModal }: NavbarProps) {
   };
 
   return (
-    <nav className={`studio-nav ${isScrolled ? 'scrolled' : ''}`}>
+    <nav className={`studio-nav ${isScrolled ? 'scrolled' : ''} ${isLoaded ? 'revealed' : 'initial'}`}>
       <Link href="/" className="studio-logo">
         <span className="studio-logo-mark" />
         <span>EDITH</span>

@@ -14,7 +14,7 @@ export interface IncidentReportContext {
 
 export async function generateIncidentSummaryReport(context: IncidentReportContext): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
   const { incident, facts, hypotheses, decisions, actionItems, questions, conflicts, participants } = context;
 

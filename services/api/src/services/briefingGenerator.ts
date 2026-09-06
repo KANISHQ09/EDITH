@@ -14,7 +14,7 @@ export interface BriefingContext {
 
 export async function generateSpokenBriefing(context: BriefingContext): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
 
   if (!apiKey) {
     return `This is EDITH with a situation update. We are ${context.elapsedMinutes} minutes into ${context.severity} incident ${context.title}. There are ${context.facts.length} confirmed facts and ${context.actionItems.length} open action items.`;
