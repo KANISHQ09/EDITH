@@ -52,6 +52,13 @@ export default function Home() {
       }
     }
     loadIncidents();
+
+    // Safety fallback: ensure isLoaded triggers even if preloader is skipped
+    const safetyTimer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 2000);
+
+    return () => clearTimeout(safetyTimer);
   }, []);
 
   const defaultIncidentId = incidents[0]?.id || '00000000-0000-0000-0000-000000000010';
