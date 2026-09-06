@@ -98,7 +98,6 @@ export function AiAssistant3DOrb({
 
   return (
     <div
-      className="ai-assistant-orb-root"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={interactive ? handlePlayVoice : undefined}
@@ -110,7 +109,8 @@ export function AiAssistant3DOrb({
         position: 'relative',
         cursor: interactive ? 'pointer' : 'default',
         userSelect: 'none',
-        maxWidth: '100%',
+        width: size,
+        height: size,
       }}
       title={interactive ? (isPlayingVoice ? 'Click to pause voice' : 'Click to interact with EDITH') : undefined}
     >
@@ -132,8 +132,9 @@ export function AiAssistant3DOrb({
 
       {/* Video element rendering edith.mp4 */}
       <div
-        className="ai-assistant-orb-circle"
         style={{
+          width: size,
+          height: size,
           borderRadius: '50%',
           overflow: 'hidden',
           backgroundColor: '#000000',

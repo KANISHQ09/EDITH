@@ -140,7 +140,7 @@ export function HeroSection({ primaryIncidentId }: HeroSectionProps) {
         </div>
 
         {/* Right Pane */}
-        <div className="hero-right-pane">
+        <div className="hero-right-pane" style={{ padding: '40px 32px' }}>
           <AiAssistant3DOrb
             onSpeakStart={() => setIsPlayingAudio(true)}
             onSpeakEnd={() => setIsPlayingAudio(false)}
