@@ -264,7 +264,7 @@ export function DeclareIncidentModal({ isOpen, onClose, onIncidentCreated }: Dec
                 padding: 14,
               }}>
                 {/* Integration Category Tabs */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 6 }}>
                   {[
                     { id: 'elevenlabs', label: '🎙️ ElevenLabs' },
                     { id: 'slack', label: '💬 Slack' },

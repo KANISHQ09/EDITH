@@ -4329,3 +4329,458 @@ div[data-nextjs-dialog-overlay] {
   cursor: pointer;
 }
 
+/* ========================================================================= */
+/* UNIVERSAL RESPONSIVE DESIGN SYSTEM FOR ALL DEVICES (Mobile, Tablet, Desktop) */
+/* ========================================================================= */
+
+/* ── Base Modal Classes ─────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 12, 14, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 99999;
+}
+
+.modal {
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #FFFFFF;
+  color: #0B0C0E;
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+  padding: 24px;
+}
+
+.incidents-page-container {
+  padding: 40px;
+}
+
+@media (max-width: 768px) {
+  .incidents-page-container {
+    padding: 16px 12px;
+  }
+}
+
+/* ── Tablet & Small Laptops (max-width: 1024px) ─────────────────────────── */
+@media (max-width: 1024px) {
+  .landing-hero {
+    padding-top: 80px;
+    padding-bottom: 40px;
+    padding-left: 24px;
+    padding-right: 24px;
+    margin-bottom: 60px;
+    min-height: auto;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-left-pane {
+    padding: 36px 28px;
+    border-right: none;
+    border-bottom: 1px solid var(--studio-border);
+  }
+
+  .hero-right-pane {
+    padding: 40px 24px;
+  }
+
+  .hero-title {
+    font-size: clamp(34px, 5vw, 46px);
+    margin-bottom: 32px;
+  }
+
+  .architecture-box {
+    padding: 40px 32px;
+  }
+
+  .architecture-heading {
+    font-size: 40px;
+    margin-bottom: 36px;
+  }
+
+  .architecture-scanline-title {
+    font-size: clamp(36px, 5vw, 52px);
+  }
+
+  .voices-carousel-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .studio-footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+  }
+}
+
+/* ── Tablets & Large Phones (max-width: 768px) ──────────────────────────── */
+@media (max-width: 768px) {
+  /* Navbar */
+  .studio-nav {
+    width: calc(100% - 24px);
+    top: 12px;
+    padding: 10px 16px;
+  }
+
+  .studio-nav-links {
+    display: none; /* Hide navigation links to prevent wrapping and overflow on mobile */
+  }
+
+  .studio-logo {
+    font-size: 17px;
+  }
+
+  .btn-cobalt {
+    padding: 8px 14px;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+
+  /* Hero Section */
+  .landing-hero {
+    padding-top: 76px;
+    padding-left: 14px;
+    padding-right: 14px;
+    margin-bottom: 48px;
+  }
+
+  .hero-left-pane {
+    padding: 24px 18px;
+  }
+
+  .hero-title {
+    font-size: clamp(26px, 6.5vw, 36px);
+    letter-spacing: -1px;
+    line-height: 1.15;
+    margin-bottom: 24px;
+  }
+
+  .hero-stat-card {
+    padding: 20px 18px;
+    min-height: auto;
+  }
+
+  .stat-metric-lcd {
+    font-size: clamp(36px, 9vw, 48px);
+  }
+
+  .hero-right-pane {
+    padding: 28px 16px;
+  }
+
+  .orb-container {
+    width: 210px;
+    height: 210px;
+    margin-bottom: 24px;
+  }
+
+  .orb-sphere {
+    width: 175px;
+    height: 175px;
+  }
+
+  /* Architecture Section */
+  .architecture-box {
+    padding: 28px 16px;
+  }
+
+  .architecture-heading {
+    font-size: clamp(26px, 6vw, 34px);
+    letter-spacing: -1px;
+    margin-bottom: 24px;
+  }
+
+  .architecture-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 20px 0;
+  }
+
+  .architecture-scanline-title {
+    font-size: clamp(24px, 6.5vw, 36px);
+  }
+
+  /* Integrations Grid */
+  .integrations-box {
+    padding: 28px 16px;
+  }
+
+  .integrations-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Voices Grid */
+  .voices-carousel-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Active Incidents Console */
+  .active-incidents-box {
+    padding: 24px 14px;
+  }
+
+  .incidents-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  /* Footer */
+  .studio-footer {
+    padding: 40px 16px 24px 16px;
+  }
+
+  .studio-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────── */
+  /* Google Meet Incident Room Mobile Responsive Experience                 */
+  /* ─────────────────────────────────────────────────────────────────────── */
+  .gm-container {
+    height: 100dvh; /* Use dynamic viewport height for mobile browser URL bars */
+  }
+
+  .gm-topbar {
+    height: 50px;
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .gm-home-top-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .gm-home-top-btn span {
+    display: inline;
+  }
+
+  .gm-call-timer {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .gm-topbar-right {
+    gap: 6px;
+  }
+
+  .gm-voice-status {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .gm-switch-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .gm-share-top-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  /* Stage Grid */
+  .gm-stage-area {
+    padding: 8px;
+  }
+
+  .gm-stage-grid.solo,
+  .gm-stage-grid.multi-user {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+  }
+
+  .gm-card {
+    min-height: 160px;
+    max-height: 38vh;
+    border-radius: 12px;
+  }
+
+  .gm-avatar-wrapper {
+    width: 68px;
+    height: 68px;
+  }
+
+  .gm-avatar-circle {
+    width: 58px;
+    height: 58px;
+    font-size: 20px;
+  }
+
+  /* Captions */
+  .gm-captions-container {
+    bottom: 84px;
+    width: 94%;
+  }
+
+  .gm-caption-box {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  /* Google Meet Mobile Dock */
+  .gm-dock-wrapper {
+    height: auto;
+    min-height: 68px;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    background: #18191A;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* Hide left meeting title/code in bottom dock on mobile to avoid overlap */
+  .gm-left-dock {
+    display: none !important;
+  }
+
+  .gm-dock-pill {
+    position: static !important;
+    transform: none !important;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 2px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gm-dock-pill::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gm-pill-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 19px;
+    flex-shrink: 0;
+  }
+
+  .gm-pill-btn.end-call {
+    width: 48px;
+    border-radius: 24px;
+  }
+
+  .gm-pill-btn.ai-action,
+  .gm-pill-btn.ask-edith-action {
+    padding: 0 10px;
+    font-size: 11px;
+    height: 38px;
+    border-radius: 19px;
+  }
+
+  .gm-right-dock {
+    position: static !important;
+    transform: none !important;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .gm-right-dock::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gm-dock-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    flex-shrink: 0;
+  }
+
+  /* Full-Screen Drawer on Mobile Screens */
+  .gm-side-drawer {
+    position: fixed !important;
+    inset: 0 !important;
+    top: 50px !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    z-index: 1000 !important;
+    border-left: none !important;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.75);
+    background: #202124;
+  }
+
+  /* Modals */
+  .modal,
+  .gm-modal-card {
+    width: 94vw !important;
+    max-width: 94vw !important;
+    padding: 18px 14px;
+    max-height: 88vh;
+    border-radius: 12px;
+  }
+}
+
+/* ── Small Mobile Phones (max-width: 480px) ─────────────────────────────── */
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  .stat-metric-lcd {
+    font-size: 32px;
+  }
+
+  .orb-container {
+    width: 170px;
+    height: 170px;
+  }
+
+  .orb-sphere {
+    width: 140px;
+    height: 140px;
+  }
+
+  .gm-topbar {
+    padding: 0 6px;
+  }
+
+  .gm-switch-btn span,
+  .gm-share-top-btn span {
+    display: none; /* Icon-only on very compact phones */
+  }
+
+  .gm-share-top-btn::after {
+    content: 'Invite';
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .gm-pill-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .gm-pill-btn.end-call {
+    width: 44px;
+  }
+
+  .gm-dock-btn {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+

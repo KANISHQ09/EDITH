@@ -76,10 +76,10 @@ export default function IncidentsDirectoryPage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--studio-bg)', color: 'var(--studio-text)', fontFamily: 'var(--font-sans)', padding: '40px' }}>
+    <div className="incidents-page-container" style={{ minHeight: '100vh', background: 'var(--studio-bg)', color: 'var(--studio-text)', fontFamily: 'var(--font-sans)' }}>
       {/* Top Header */}
       <div style={{ maxWidth: 1200, margin: '0 auto', marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <Link
             href="/"
             className="btn-studio-outline"
@@ -120,7 +120,8 @@ export default function IncidentsDirectoryPage() {
               border: '1px solid var(--studio-border)',
               background: '#FAFAFC',
               fontSize: 13,
-              width: 300,
+              width: '100%',
+              maxWidth: 300,
               outline: 'none',
             }}
           />

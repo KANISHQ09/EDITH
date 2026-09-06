@@ -1961,7 +1961,7 @@ export function GoogleMeetWarRoom({
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginTop: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 6, marginTop: 14 }}>
               {[
                 { id: 'elevenlabs', label: '🎙️ ElevenLabs' },
                 { id: 'slack', label: '💬 Slack' },
