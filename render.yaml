@@ -7,8 +7,8 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install --include=dev && npm run build:backend && npm run migrate
-    startCommand: npm run start:api
+    buildCommand: npm install --include=dev && npm run build:backend
+    startCommand: npm run migrate && npm run start:api
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
