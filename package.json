@@ -25,7 +25,12 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run build --workspace=shared && npm run typecheck --workspaces --if-present",
     "migrate": "npm run migrate --workspace=services/api",
-    "migrate:rollback": "npm run migrate:rollback --workspace=services/api"
+    "migrate:rollback": "npm run migrate:rollback --workspace=services/api",
+    "start:api": "node services/api/dist/index.js",
+    "start:wsg": "node services/websocket-gateway/dist/index.js",
+    "start:ism": "node services/incident-state-manager/dist/index.js",
+    "start:backend": "concurrently --names \"api,ism,wsg\" \"node services/api/dist/index.js\" \"node services/incident-state-manager/dist/index.js\" \"node services/websocket-gateway/dist/index.js\"",
+    "build:backend": "npm run build --workspace=shared && npm run build --workspace=services/api && npm run build --workspace=services/websocket-gateway && npm run build --workspace=services/incident-state-manager"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

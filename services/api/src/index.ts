@@ -16,12 +16,25 @@ import webhookRoutes from './routes/webhooks';
 import healthRoutes from './routes/health';
 
 const app = express();
-const PORT = process.env.API_PORT || 3001;
+const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
 // ─── Security Middleware ─────────────────────────────────────
 app.use(helmet());
+const rawAllowed = process.env.ALLOWED_ORIGINS;
+const allowedOrigins = rawAllowed ? rawAllowed.split(',').map((s) => s.trim()) : null;
+
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+    if (!origin || !allowedOrigins || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    // Automatically allow Vercel previews and deployments
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true,
 }));
 

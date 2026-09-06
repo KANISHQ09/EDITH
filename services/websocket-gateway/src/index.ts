@@ -2,8 +2,8 @@ import path from 'path';
 import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
+import http, { IncomingMessage } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { IncomingMessage } from 'http';
 import { verify } from 'jsonwebtoken';
 import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
 import { createClient } from 'redis';
@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from './lib/logger';
 import { KAFKA_TOPICS, DEFAULTS } from '@vaic/shared';
 
-const PORT = parseInt(process.env.WSG_PORT || '3002', 10);
+const PORT = parseInt(process.env.PORT || process.env.WSG_PORT || '3002', 10);
 const KAFKA_BROKERS = process.env.KAFKA_BROKERS || 'localhost:9092';
 const GROUP_ID = process.env.KAFKA_GROUP_ID_WSG || 'vaic-wsg-group';
 const JWT_SECRET = process.env.JWT_SECRET || 'vaic-dev-jwt-secret-minimum-32-chars-key-here';
@@ -26,8 +26,19 @@ const clients = new Map<string, Map<string, WebSocket>>();
 const eventBuffer = new Map<string, object[]>();
 const MAX_REPLAY_EVENTS = DEFAULTS.WEBSOCKET_REPLAY_COUNT;
 
-// ─── WebSocket Server ────────────────────────────────────────
-const wss = new WebSocketServer({ port: PORT });
+// ─── HTTP Server & WebSocket Server ──────────────────────────
+// Wrapped in HTTP server to support Render / PaaS health checks
+const server = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', service: 'vaic-wsg', timestamp: new Date().toISOString() }));
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not Found');
+  }
+});
+
+const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
   const url = new URL(req.url!, `ws://localhost:${PORT}`);
@@ -105,7 +116,9 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
   });
 });
 
-logger.info({ message: 'WebSocket Gateway started', port: PORT, service: 'wsg' });
+server.listen(PORT, () => {
+  logger.info({ message: 'WebSocket Gateway started', port: PORT, service: 'wsg' });
+});
 
 // ─── Dispatch helper ─────────────────────────────────────────
 function dispatchStateDelta(delta: any) {
