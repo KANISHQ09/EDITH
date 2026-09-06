@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api';
 import { DeclareIncidentModal } from '@/components/landing/DeclareIncidentModal';
 
 interface IncidentSummary {
@@ -34,7 +35,7 @@ export default function IncidentsDirectoryPage() {
     setDeleteError(null);
 
     try {
-      const res = await fetch(`/api/v1/incidents/${incidentToDelete.id}`, {
+      const res = await apiFetch(`/api/v1/incidents/${incidentToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -55,7 +56,7 @@ export default function IncidentsDirectoryPage() {
   useEffect(() => {
     async function fetchIncidents() {
       try {
-        const res = await fetch('/api/v1/incidents');
+        const res = await apiFetch('/api/v1/incidents');
         if (res.ok) {
           const data = await res.json();
           setIncidents(data.data || []);

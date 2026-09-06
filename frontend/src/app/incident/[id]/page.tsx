@@ -8,6 +8,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { GoogleMeetWarRoom } from '@/components/meet/GoogleMeetWarRoom';
 import { ReportModal } from '@/components/ReportModal';
 import { UserProfileModal } from '@/components/UserProfileModal';
+import { apiFetch } from '@/lib/api';
 
 export default function IncidentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -49,8 +50,8 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
       setLoadError(null);
       try {
         const [incRes, transRes] = await Promise.all([
-          fetch(`/api/v1/incidents/${id}`),
-          fetch(`/api/v1/incidents/${id}/transcripts`),
+          apiFetch(`/api/v1/incidents/${id}`),
+          apiFetch(`/api/v1/incidents/${id}/transcripts`),
         ]);
 
         if (!incRes.ok) {
@@ -194,7 +195,7 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
 
     setIsResolving(true);
     try {
-      const res = await fetch(`/api/v1/incidents/${id}/resolve`, {
+      const res = await apiFetch(`/api/v1/incidents/${id}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });

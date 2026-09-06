@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useIncidentStore } from '@/stores/incidentStore';
+import { apiFetch } from '@/lib/api';
 
 interface DeclareIncidentModalProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export function DeclareIncidentModal({ isOpen, onClose, onIncidentCreated }: Dec
         if (pagerdutyRoutingKey) localStorage.setItem('edith_pagerduty_key', pagerdutyRoutingKey.trim());
       }
 
-      const res = await fetch('/api/v1/incidents', {
+      const res = await apiFetch('/api/v1/incidents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

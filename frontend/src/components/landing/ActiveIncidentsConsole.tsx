@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api';
 
 interface IncidentSummary {
   id: string;
@@ -39,7 +40,7 @@ export function ActiveIncidentsConsole({
     setDeleteError(null);
 
     try {
-      const res = await fetch(`/api/v1/incidents/${incidentToDelete.id}`, {
+      const res = await apiFetch(`/api/v1/incidents/${incidentToDelete.id}`, {
         method: 'DELETE',
       });
 

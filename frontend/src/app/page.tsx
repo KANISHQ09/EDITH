@@ -10,6 +10,7 @@ import { ArchitectureSection } from '@/components/landing/ArchitectureSection';
 import { ActiveIncidentsConsole } from '@/components/landing/ActiveIncidentsConsole';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 import { DeclareIncidentModal } from '@/components/landing/DeclareIncidentModal';
+import { apiFetch } from '@/lib/api';
 
 interface IncidentSummary {
   id: string;
@@ -41,7 +42,7 @@ export default function Home() {
 
     async function loadIncidents() {
       try {
-        const res = await fetch('/api/v1/incidents');
+        const res = await apiFetch('/api/v1/incidents');
         if (res.ok) {
           const data = await res.json();
           setIncidents(data.data || []);
