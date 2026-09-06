@@ -27,6 +27,21 @@ async function runMigration() {
     const client = await pool.connect();
     console.log('✅ Connected to PostgreSQL successfully!');
 
+    // Check if database tables are already initialized
+    try {
+      const checkRes = await client.query(
+        "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'incidents'"
+      );
+      if (checkRes.rowCount && checkRes.rowCount > 0) {
+        console.log('✅ Database schema already initialized (incidents table detected). Skipping init.');
+        client.release();
+        await pool.end();
+        return;
+      }
+    } catch {
+      // Continue to full init if check query fails
+    }
+
     // Read the init.sql schema file
     const sqlPath = path.resolve(__dirname, '../../../../infrastructure/docker/postgres/init.sql');
     if (!fs.existsSync(sqlPath)) {
@@ -42,6 +57,11 @@ async function runMigration() {
     client.release();
     await pool.end();
   } catch (err: any) {
+    if (err.message && (err.message.includes('already exists') || err.code === '42710' || err.code === '42P07')) {
+      console.log('⚠️ Notice: Schema elements already present, skipping gracefully:', err.message);
+      await pool.end();
+      process.exit(0);
+    }
     console.error('❌ Migration failed:', err.message);
     await pool.end();
     process.exit(1);

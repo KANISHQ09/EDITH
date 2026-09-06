@@ -11,50 +11,61 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 -- ENUM TYPES
 -- ============================================================
 
-CREATE TYPE incident_severity AS ENUM ('P1', 'P2', 'P3', 'P4');
-CREATE TYPE incident_status AS ENUM ('ACTIVE', 'MITIGATED', 'RESOLVED', 'CANCELLED');
-
-CREATE TYPE participant_role AS ENUM (
-  'INCIDENT_COMMANDER',
-  'RESPONDER',
-  'OBSERVER',
-  'BUSINESS_STAKEHOLDER',
-  'PLATFORM_ADMIN',
-  'VAIC_SYSTEM'
-);
-
-CREATE TYPE classification_type AS ENUM (
-  'FACT',
-  'HYPOTHESIS',
-  'DECISION',
-  'ACTION_ITEM',
-  'QUESTION',
-  'STATUS_UPDATE',
-  'SOCIAL'
-);
-
-CREATE TYPE item_status AS ENUM (
-  'PENDING',
-  'IN_PROGRESS',
-  'CONFIRMED',
-  'REJECTED',
-  'RESOLVED'
-);
-
-CREATE TYPE tool_action_status AS ENUM (
-  'PENDING',
-  'CONFIRMED',
-  'REJECTED',
-  'EXECUTING',
-  'EXECUTED',
-  'FAILED'
-);
-
-CREATE TYPE conflict_status AS ENUM (
-  'OPEN',
-  'RESOLVED',
-  'DISMISSED'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'incident_severity') THEN
+    CREATE TYPE incident_severity AS ENUM ('P1', 'P2', 'P3', 'P4');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'incident_status') THEN
+    CREATE TYPE incident_status AS ENUM ('ACTIVE', 'MITIGATED', 'RESOLVED', 'CANCELLED');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'participant_role') THEN
+    CREATE TYPE participant_role AS ENUM (
+      'INCIDENT_COMMANDER',
+      'RESPONDER',
+      'OBSERVER',
+      'BUSINESS_STAKEHOLDER',
+      'PLATFORM_ADMIN',
+      'VAIC_SYSTEM'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'classification_type') THEN
+    CREATE TYPE classification_type AS ENUM (
+      'FACT',
+      'HYPOTHESIS',
+      'DECISION',
+      'ACTION_ITEM',
+      'QUESTION',
+      'STATUS_UPDATE',
+      'SOCIAL'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'item_status') THEN
+    CREATE TYPE item_status AS ENUM (
+      'PENDING',
+      'IN_PROGRESS',
+      'CONFIRMED',
+      'REJECTED',
+      'RESOLVED'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tool_action_status') THEN
+    CREATE TYPE tool_action_status AS ENUM (
+      'PENDING',
+      'CONFIRMED',
+      'REJECTED',
+      'EXECUTING',
+      'EXECUTED',
+      'FAILED'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'conflict_status') THEN
+    CREATE TYPE conflict_status AS ENUM (
+      'OPEN',
+      'RESOLVED',
+      'DISMISSED'
+    );
+  END IF;
+END $$;
 
 -- ============================================================
 -- TABLES
