@@ -621,38 +621,27 @@ export function GoogleMeetWarRoom({
       {/* Integrated Live KPI Telemetry HUD Strip */}
       {/* ───────────────────────────────────────────────────────── */}
       {showKpiBar && (
-        <div style={{
-          background: 'rgba(30, 31, 32, 0.95)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '8px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-          fontSize: 12,
-          zIndex: 15,
-        }}>
+        <div className="gm-kpi-hud">
           {/* KPI 1: Severity */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="gm-kpi-item">
             <span style={{ color: '#F87171' }}>🛡️</span>
             <div>
-              <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Severity</div>
+              <div className="gm-kpi-label">Severity</div>
               <strong style={{ color: '#EF4444' }}>{incident?.severity || 'P1'} Critical</strong>
             </div>
           </div>
 
           {/* KPI 2: Confidence Score */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="gm-kpi-item">
             <span style={{ color: '#60A5FA' }}>📊</span>
             <div>
-              <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Confidence Score</div>
+              <div className="gm-kpi-label">Confidence Score</div>
               <strong style={{ color: '#38BDF8' }}>{avgConfidence}% High Confidence</strong>
             </div>
           </div>
 
           {/* KPI 3: Resolution Progress */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 160 }}>
+          <div className="gm-kpi-item gm-kpi-progress-item">
             <span style={{ color: '#34D399' }}>🎯</span>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94A3B8' }}>
@@ -666,21 +655,21 @@ export function GoogleMeetWarRoom({
           </div>
 
           {/* KPI 4: Assets at Risk */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="gm-kpi-item">
             <span style={{ color: '#FBBF24' }}>📦</span>
             <div>
-              <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Affected Systems</div>
-              <span style={{ color: '#F1F5F9', fontFamily: 'var(--font-mono)' }}>
+              <div className="gm-kpi-label">Affected Systems</div>
+              <span style={{ color: '#F1F5F9', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
                 {(incident?.affectedSystems || ['checkout-api', 'redis-primary']).join(', ')}
               </span>
             </div>
           </div>
 
           {/* KPI 5: Team Response */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="gm-kpi-item">
             <span style={{ color: '#4ADE80' }}>⚡</span>
             <div>
-              <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Team Status</div>
+              <div className="gm-kpi-label">Team Status</div>
               <strong style={{ color: incident?.status === 'RESOLVED' ? '#4ADE80' : '#38BDF8' }}>
                 {incident?.status === 'RESOLVED' ? 'RESOLVED (ISR Ready)' : 'ALL SYSTEMS ENGAGED'}
               </strong>
@@ -698,15 +687,7 @@ export function GoogleMeetWarRoom({
 
       {/* Pending Tool Action Confirmation Strip */}
       {pendingToolActions && pendingToolActions.length > 0 && (
-        <div style={{
-          background: 'rgba(245, 158, 11, 0.15)',
-          borderBottom: '1px solid rgba(245, 158, 11, 0.4)',
-          padding: '8px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          zIndex: 15,
-        }}>
+        <div className="gm-tool-banner">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 18 }}>⚠️</span>
             <div>

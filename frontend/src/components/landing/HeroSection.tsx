@@ -93,7 +93,7 @@ export function HeroSection({ primaryIncidentId }: HeroSectionProps) {
           <div>
             <div className="section-badge">Voice AI Incident Commander</div>
             <h1 className="hero-title">
-              Autonomous Incident Commander for High-Scale Systems.
+              Autonomous Incident Commander for High&#8209;Scale Systems.
             </h1>
           </div>
 
@@ -140,16 +140,16 @@ export function HeroSection({ primaryIncidentId }: HeroSectionProps) {
         </div>
 
         {/* Right Pane */}
-        <div className="hero-right-pane" style={{ padding: '40px 32px' }}>
+        <div className="hero-right-pane">
           <AiAssistant3DOrb
             onSpeakStart={() => setIsPlayingAudio(true)}
             onSpeakEnd={() => setIsPlayingAudio(false)}
           />
 
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginTop: 32 }}>
+          <div className="hero-cta-group">
             <Link
               href={`/incident/${primaryIncidentId}`}
-              className="btn-studio-black"
+              className="btn-studio-black hero-btn"
             >
               <span>LAUNCH COMMAND CENTER</span>
               <span>→</span>
@@ -157,7 +157,7 @@ export function HeroSection({ primaryIncidentId }: HeroSectionProps) {
 
             <button
               onClick={handlePlayVoice}
-              className="btn-studio-outline"
+              className="btn-studio-outline hero-btn"
             >
               <span>{isPlayingAudio ? 'PAUSE VOICE' : 'HEAR EDITH IN ACTION'}</span>
             </button>

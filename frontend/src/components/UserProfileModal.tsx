@@ -72,11 +72,13 @@ export function UserProfileModal({ isOpen, onClose, incidentId, isInitialJoin = 
       onClick={onClose}
     >
       <div
-        className="vaic-card"
+        className="vaic-card profile-modal-card"
         style={{
-          width: 440,
-          maxWidth: '92vw',
-          padding: 24,
+          width: '92vw',
+          maxWidth: 440,
+          maxHeight: '90dvh',
+          overflowY: 'auto',
+          padding: 'clamp(16px, 4vw, 24px)',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
         }}
         onClick={(e) => e.stopPropagation()}

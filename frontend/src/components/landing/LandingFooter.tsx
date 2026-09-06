@@ -6,38 +6,19 @@ export function LandingFooter() {
   return (
     <footer className="landing-section" style={{ marginBottom: 40 }}>
       {/* Call to action card */}
-      <div style={{
-        background: '#0B0C0E',
-        color: '#FFFFFF',
-        borderRadius: 6,
-        padding: '56px 48px',
-        marginBottom: 20,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: 24,
-      }}>
+      <div className="footer-cta-card">
         <div>
-          <div style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-            color: 'var(--cobalt-primary)',
-            marginBottom: 12,
-          }}>
+          <div className="footer-cta-tag">
             ■ READY FOR PRODUCTION
           </div>
-          <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: -1, maxWidth: 640, lineHeight: 1.2 }}>
+          <h2 className="footer-cta-heading">
             Transform Outage Chaos into Structured Clarity with EDITH.
           </h2>
         </div>
 
         <Link
           href="#incidents"
-          className="btn-cobalt"
-          style={{ padding: '14px 28px', fontSize: 13 }}
+          className="btn-cobalt footer-cta-btn"
         >
           <span>LAUNCH LIVE INCIDENT ROOM</span>
           <span style={{ fontSize: 16 }}>→</span>

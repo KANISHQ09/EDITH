@@ -132,10 +132,7 @@ export function IntegrationsSection() {
 
       <div className="studio-grid-box">
         {/* Modern Vector Logo Grid Tabs */}
-        <div
-          className="logo-grid"
-          style={{ gridTemplateColumns: `repeat(${INTEGRATIONS.length}, 1fr)` }}
-        >
+        <div className="logo-grid">
           {INTEGRATIONS.map((item) => {
             const isActive = item.id === activeId;
             return (

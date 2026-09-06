@@ -70,8 +70,20 @@ export function VoicesSection() {
   // Center active persona index (default: Elliot at index 2)
   const [currentIndex, setCurrentIndex] = useState(2);
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(1200);
 
   const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== 'undefined') {
+        setWindowWidth(window.innerWidth);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Auto-shift to next persona continuously every 3.8s in slow, graceful 3.4s motion
   useEffect(() => {
@@ -166,8 +178,14 @@ export function VoicesSection() {
 
             const isCenter = diff === 0;
 
-            // X-coordinates strictly inside container:
-            // Center = 0, Side = ±295px, Peeking = ±505px
+            // Compute dynamic X offset based on viewport width
+            const isUltraSmall = windowWidth < 380;
+            const isSmallMobile = windowWidth >= 380 && windowWidth < 480;
+            const isTablet = windowWidth >= 480 && windowWidth < 900;
+
+            const sideOffset = isUltraSmall ? 98 : isSmallMobile ? 140 : isTablet ? 220 : 295;
+            const farOffset = isUltraSmall ? 200 : isSmallMobile ? 320 : isTablet ? 400 : 505;
+
             let xPos = 0;
             let scale = 1;
             let opacity = 1;
@@ -175,28 +193,28 @@ export function VoicesSection() {
 
             if (diff === 0) {
               xPos = 0;
-              scale = 1;
+              scale = isUltraSmall ? 0.8 : isSmallMobile ? 0.88 : 1;
               opacity = 1;
               zIndex = 5;
             } else if (diff === 1) {
-              xPos = 295;
-              scale = 0.68;
-              opacity = 0.85;
+              xPos = sideOffset;
+              scale = isUltraSmall ? 0.44 : isSmallMobile ? 0.52 : 0.68;
+              opacity = isUltraSmall ? 0.25 : isSmallMobile ? 0.35 : 0.85;
               zIndex = 3;
             } else if (diff === -1) {
-              xPos = -295;
-              scale = 0.68;
-              opacity = 0.85;
+              xPos = -sideOffset;
+              scale = isUltraSmall ? 0.44 : isSmallMobile ? 0.52 : 0.68;
+              opacity = isUltraSmall ? 0.25 : isSmallMobile ? 0.35 : 0.85;
               zIndex = 3;
             } else if (diff === 2) {
-              xPos = 505;
-              scale = 0.42;
-              opacity = 0.28;
+              xPos = farOffset;
+              scale = isUltraSmall ? 0.25 : isSmallMobile ? 0.3 : 0.42;
+              opacity = (isUltraSmall || isSmallMobile) ? 0 : 0.28;
               zIndex = 1;
             } else if (diff === -2) {
-              xPos = -505;
-              scale = 0.42;
-              opacity = 0.28;
+              xPos = -farOffset;
+              scale = isUltraSmall ? 0.25 : isSmallMobile ? 0.3 : 0.42;
+              opacity = (isUltraSmall || isSmallMobile) ? 0 : 0.28;
               zIndex = 1;
             }
 
@@ -213,7 +231,7 @@ export function VoicesSection() {
                   transform: `translate3d(${xPos}px, 0, 0) scale(${scale})`,
                   opacity,
                   zIndex,
-                  pointerEvents: Math.abs(diff) <= 1 ? 'auto' : 'none',
+                  pointerEvents: Math.abs(diff) <= (isSmallMobile ? 0 : 1) ? 'auto' : 'none',
                 }}
               >
                 {/* Persona Top Label */}
@@ -294,6 +312,39 @@ export function VoicesSection() {
               </div>
             );
           })}
+        </div>
+
+        {/* Mobile & Touch Controls Bar */}
+        <div className="personas-controls-bar">
+          <button
+            type="button"
+            onClick={handlePrev}
+            className="personas-arrow-btn"
+            aria-label="Previous voice persona"
+          >
+            ←
+          </button>
+
+          <div className="personas-dots">
+            {PERSONAS.map((p, idx) => (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => setCurrentIndex(idx)}
+                className={`persona-dot ${currentIndex === idx ? 'active' : ''}`}
+                aria-label={`Select voice persona ${p.name}`}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleNext}
+            className="personas-arrow-btn"
+            aria-label="Next voice persona"
+          >
+            →
+          </button>
         </div>
       </div>
     </section>

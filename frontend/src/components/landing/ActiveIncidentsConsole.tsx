@@ -62,10 +62,10 @@ export function ActiveIncidentsConsole({
 
   return (
     <section className="landing-section" id="incidents">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 20, marginBottom: 24 }}>
+      <div className="active-incidents-header">
         <div>
           <div className="section-badge">Live Incident Command Console</div>
-          <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: -1, color: 'var(--studio-text)' }}>
+          <h2 className="active-incidents-heading">
             Active Incident Rooms
           </h2>
         </div>
@@ -73,7 +73,7 @@ export function ActiveIncidentsConsole({
         <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={onOpenDeclareModal}
-            className="btn-cobalt"
+            className="btn-cobalt active-incidents-top-btn"
           >
             <span>+ DECLARE INCIDENT</span>
           </button>
@@ -92,28 +92,15 @@ export function ActiveIncidentsConsole({
               return (
                 <div
                   key={inc.id}
+                  className="active-incident-row"
                   style={{
-                    padding: '24px 32px',
                     borderBottom: idx === incidents.length - 1 ? 'none' : '1px solid var(--studio-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 16,
-                    background: '#FFFFFF',
-                    transition: 'background 0.2s ease',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAFC')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = '#FFFFFF')}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div className="active-incident-main">
                     <span
+                      className="active-incident-badge"
                       style={{
-                        padding: '4px 10px',
-                        borderRadius: 4,
-                        fontFamily: 'var(--dot-matrix-font)',
-                        fontSize: 12,
-                        fontWeight: 800,
                         background: isP1 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
                         color: isP1 ? '#EF4444' : '#F59E0B',
                         border: `1px solid ${isP1 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
@@ -122,12 +109,12 @@ export function ActiveIncidentsConsole({
                       {inc.severity}
                     </span>
 
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--studio-text)', marginBottom: 4 }}>
+                    <div className="active-incident-info">
+                      <div className="active-incident-title">
                         {inc.title}
                       </div>
 
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 12, color: 'var(--studio-muted)' }}>
+                      <div className="active-incident-meta">
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -152,10 +139,10 @@ export function ActiveIncidentsConsole({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="active-incident-actions">
                     <Link
                       href={`/incident/${inc.id}`}
-                      className="btn-studio-black"
+                      className="btn-studio-black active-incident-btn"
                       style={{ fontSize: 12, padding: '10px 18px' }}
                     >
                       <span>ENTER INCIDENT ROOM</span>

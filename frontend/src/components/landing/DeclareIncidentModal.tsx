@@ -118,12 +118,15 @@ export function DeclareIncidentModal({ isOpen, onClose, onIncidentCreated }: Dec
       zIndex: 99999,
     }}>
       <div
-        className="modal"
+        className="modal declare-modal-box"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: '#FFFFFF',
           color: '#0B0C0E',
+          width: '94vw',
           maxWidth: 520,
+          maxHeight: '90dvh',
+          overflowY: 'auto',
           border: '1px solid var(--studio-border)',
           boxShadow: '0 24px 60px rgba(0, 0, 0, 0.2)',
         }}

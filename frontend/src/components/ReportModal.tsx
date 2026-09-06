@@ -31,7 +31,7 @@ export function ReportModal({ isOpen, onClose, reportMarkdown, incidentTitle }: 
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose} style={{
+    <div className="modal-backdrop report-modal-backdrop" onClick={onClose} style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(0, 0, 0, 0.75)',
@@ -39,10 +39,10 @@ export function ReportModal({ isOpen, onClose, reportMarkdown, incidentTitle }: 
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 9999,
-      padding: 24,
+      padding: 'clamp(10px, 3vw, 24px)',
     }}>
       <div
-        className="modal-box"
+        className="modal-box report-modal-box"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--bg-panel, #12151c)',
@@ -50,7 +50,7 @@ export function ReportModal({ isOpen, onClose, reportMarkdown, incidentTitle }: 
           borderRadius: 12,
           width: '100%',
           maxWidth: 820,
-          maxHeight: '88vh',
+          maxHeight: '90dvh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6)',
@@ -58,7 +58,7 @@ export function ReportModal({ isOpen, onClose, reportMarkdown, incidentTitle }: 
       >
         {/* Header */}
         <div className="report-modal-header" style={{
-          padding: '16px 24px',
+          padding: '16px 20px',
           borderBottom: '1px solid var(--border, #2d3340)',
           display: 'flex',
           justifyContent: 'space-between',
@@ -90,14 +90,16 @@ export function ReportModal({ isOpen, onClose, reportMarkdown, incidentTitle }: 
 
         {/* Content */}
         <div style={{
-          padding: 24,
+          padding: 'clamp(14px, 3vw, 24px)',
           overflowY: 'auto',
+          overflowX: 'auto',
           flex: 1,
           fontFamily: 'var(--font-mono, monospace)',
           fontSize: 13,
           lineHeight: 1.6,
           color: 'var(--text-primary, #c9d1d9)',
           whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
           background: 'var(--bg-base, #0d1117)',
         }}>
           {reportMarkdown || 'Generating report...'}

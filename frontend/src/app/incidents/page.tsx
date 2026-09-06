@@ -76,10 +76,10 @@ export default function IncidentsDirectoryPage() {
   });
 
   return (
-    <div className="incidents-page-container" style={{ minHeight: '100vh', background: 'var(--studio-bg)', color: 'var(--studio-text)', fontFamily: 'var(--font-sans)' }}>
+    <div className="incidents-page-container">
       {/* Top Header */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      <div className="incidents-top-header">
+        <div className="incidents-title-group">
           <Link
             href="/"
             className="btn-studio-outline"
@@ -88,7 +88,7 @@ export default function IncidentsDirectoryPage() {
             ← Back to Product
           </Link>
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: -1 }}>
+            <h1 className="incidents-title">
               Incident Command Directory
             </h1>
             <div style={{ fontSize: 12, color: 'var(--studio-muted)' }}>
@@ -99,34 +99,25 @@ export default function IncidentsDirectoryPage() {
 
         <button
           onClick={() => setIsDeclareOpen(true)}
-          className="btn-cobalt"
+          className="btn-cobalt incidents-declare-btn"
         >
           + DECLARE INCIDENT
         </button>
       </div>
 
       {/* Main Console Box */}
-      <div style={{ maxWidth: 1200, margin: '0 auto' }} className="studio-grid-box">
+      <div className="studio-grid-box incidents-box">
         {/* Filter bar */}
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--studio-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, background: '#FFFFFF' }}>
+        <div className="incidents-filter-bar">
           <input
             type="text"
             placeholder="Search by title or affected system..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 4,
-              border: '1px solid var(--studio-border)',
-              background: '#FAFAFC',
-              fontSize: 13,
-              width: '100%',
-              maxWidth: 300,
-              outline: 'none',
-            }}
+            className="incidents-search-input"
           />
 
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div className="incidents-severity-pills">
             {['ALL', 'P1', 'P2', 'P3', 'P4'].map((lvl) => (
               <button
                 key={lvl}
@@ -141,6 +132,8 @@ export default function IncidentsDirectoryPage() {
                   background: filterSeverity === lvl ? 'var(--cobalt-primary)' : '#FFFFFF',
                   color: filterSeverity === lvl ? '#FFFFFF' : 'var(--studio-text)',
                   cursor: 'pointer',
+                  flex: '1 1 auto',
+                  textAlign: 'center',
                 }}
               >
                 {lvl}
@@ -158,18 +151,12 @@ export default function IncidentsDirectoryPage() {
           filtered.map((inc, idx) => (
             <div
               key={inc.id}
+              className="incident-dir-card"
               style={{
-                padding: '20px 24px',
                 borderBottom: idx === filtered.length - 1 ? 'none' : '1px solid var(--studio-border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 16,
-                background: '#FFFFFF',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div className="incident-dir-main">
                 <span style={{
                   padding: '4px 8px',
                   borderRadius: 4,
@@ -178,24 +165,25 @@ export default function IncidentsDirectoryPage() {
                   fontWeight: 800,
                   background: inc.severity === 'P1' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
                   color: inc.severity === 'P1' ? '#EF4444' : '#F59E0B',
+                  flexShrink: 0,
                 }}>
                   {inc.severity}
                 </span>
 
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--studio-text)' }}>
+                <div className="incident-dir-info">
+                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--studio-text)', wordBreak: 'break-word' }}>
                     {inc.title}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--studio-muted)', marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: 'var(--studio-muted)', marginTop: 2, wordBreak: 'break-word' }}>
                     {inc.status} · Started {new Date(inc.start_ts).toLocaleString()} · {inc.affected_systems?.join(', ') || 'core-system'}
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="incident-dir-actions">
                 <Link
                   href={`/incident/${inc.id}`}
-                  className="btn-studio-black"
+                  className="btn-studio-black incident-dir-btn"
                   style={{ fontSize: 12, padding: '8px 16px' }}
                 >
                   ENTER INCIDENT ROOM →
@@ -205,6 +193,7 @@ export default function IncidentsDirectoryPage() {
                   type="button"
                   onClick={() => setIncidentToDelete(inc)}
                   title={`Delete "${inc.title}"`}
+                  className="incident-dir-delete-btn"
                   style={{
                     padding: '8px 12px',
                     borderRadius: 4,
@@ -216,6 +205,7 @@ export default function IncidentsDirectoryPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     transition: 'all 0.15s ease',
+                    flexShrink: 0,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#fee2e2';
