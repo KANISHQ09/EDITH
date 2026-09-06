@@ -7,7 +7,7 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install && npm run build:backend && npm run migrate
+    buildCommand: npm install --include=dev && npm run build:backend && npm run migrate
     startCommand: npm run start:api
     healthCheckPath: /health
     envVars:
@@ -34,7 +34,7 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install && npm run build:backend
+    buildCommand: npm install --include=dev && npm run build:backend
     startCommand: npm run start:wsg
     healthCheckPath: /health
     envVars:

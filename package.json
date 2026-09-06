@@ -32,7 +32,7 @@
     "start:backend": "concurrently --names \"api,ism,wsg\" \"node services/api/dist/index.js\" \"node services/incident-state-manager/dist/index.js\" \"node services/websocket-gateway/dist/index.js\"",
     "build:backend": "npm run build --workspace=shared && npm run build --workspace=services/api && npm run build --workspace=services/websocket-gateway && npm run build --workspace=services/incident-state-manager"
   },
-  "devDependencies": {
+  "dependencies": {
     "concurrently": "^8.2.2",
     "dotenv": "^17.4.2",
     "pg": "^8.23.0",
