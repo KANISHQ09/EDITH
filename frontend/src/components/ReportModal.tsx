@@ -57,12 +57,14 @@ export function ReportModal({ isOpen, onClose, reportMarkdown, incidentTitle }: 
         }}
       >
         {/* Header */}
-        <div style={{
+        <div className="report-modal-header" style={{
           padding: '16px 24px',
           borderBottom: '1px solid var(--border, #2d3340)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
         }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary, #fff)' }}>
@@ -73,7 +75,7 @@ export function ReportModal({ isOpen, onClose, reportMarkdown, incidentTitle }: 
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="report-modal-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={handleCopy} className="btn btn-secondary btn-sm" style={{ fontSize: 12 }}>
               {copied ? '✓ Copied' : '📋 Copy Markdown'}
             </button>

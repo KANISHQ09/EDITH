@@ -4730,6 +4730,27 @@ div[data-nextjs-dialog-overlay] {
     max-height: 88vh;
     border-radius: 12px;
   }
+
+  .modal-backdrop {
+    padding: 10px !important;
+  }
+
+  .modal-box {
+    max-height: 92vh !important;
+    border-radius: 10px !important;
+  }
+
+  .report-modal-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    padding: 14px 16px !important;
+  }
+
+  .report-modal-actions {
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
 }
 
 /* ── Small Mobile Phones (max-width: 480px) ─────────────────────────────── */
@@ -4741,6 +4762,12 @@ div[data-nextjs-dialog-overlay] {
 
   .stat-metric-lcd {
     font-size: 32px;
+  }
+
+  .preloader-counter {
+    font-size: clamp(36px, 12vw, 48px) !important;
+    bottom: 20px !important;
+    right: 20px !important;
   }
 
   .orb-container {
@@ -4782,5 +4809,6 @@ div[data-nextjs-dialog-overlay] {
     height: 32px;
   }
 }
+
 
 
