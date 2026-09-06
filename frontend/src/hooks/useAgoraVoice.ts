@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { apiFetch } from '@/lib/api';
 import type {
   IAgoraRTCClient,
   IMicrophoneAudioTrack,
@@ -29,19 +30,24 @@ export function useAgoraVoice(incidentId: string): AgoraVoiceState {
 
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
+  const isJoinedRef = useRef(isJoined);
+  isJoinedRef.current = isJoined;
+  const isConnectingRef = useRef(isConnecting);
+  isConnectingRef.current = isConnecting;
 
   const joinVoice = useCallback(async () => {
-    if (isJoined || isConnecting) return;
+    if (!incidentId || incidentId === 'demo' || isJoinedRef.current || isConnectingRef.current) return;
     setIsConnecting(true);
+    isConnectingRef.current = true;
     setError(null);
 
     try {
       // Dynamic import to prevent SSR issues with window/navigator
       const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
-      AgoraRTC.setLogLevel(2); // Warning level
+      AgoraRTC.setLogLevel(3); // Error level only — suppresses internal edge-racing probe logs
 
-      // 1. Fetch token from backend
-      const res = await fetch(`/api/v1/incidents/${incidentId}/agora-token`);
+      // 1. Fetch token from backend using authenticated apiFetch
+      const res = await apiFetch(`/api/v1/incidents/${incidentId}/agora-token`);
       if (!res.ok) {
         throw new Error('Failed to get voice credentials from server');
       }
@@ -84,26 +90,35 @@ export function useAgoraVoice(incidentId: string): AgoraVoiceState {
       // 3. Join channel
       await client.join(appId, channel, token, uid);
 
-      // 4. Create and publish microphone track
-      const localTrack = await AgoraRTC.createMicrophoneAudioTrack({
-        encoderConfig: 'speech_standard',
-        AEC: true,
-        ANS: true,
-      });
-      localAudioTrackRef.current = localTrack;
-
-      await client.publish([localTrack]);
+      // 4. Create and publish microphone track if mic available
+      try {
+        const localTrack = await AgoraRTC.createMicrophoneAudioTrack({
+          encoderConfig: 'speech_standard',
+          AEC: true,
+          ANS: true,
+        });
+        localAudioTrackRef.current = localTrack;
+        await client.publish([localTrack]);
+        setIsMuted(false);
+      } catch (micErr) {
+        console.warn('Microphone permission not granted yet or mic busy, joined as listener:', micErr);
+        setIsMuted(true);
+      }
 
       setIsJoined(true);
-      setIsMuted(false);
       console.log('🎙️ Successfully joined Agora Voice Call:', channel, 'as UID:', uid);
     } catch (err: any) {
+      if (err?.code === 'OPERATION_ABORTED' || err?.message?.includes('cancel token canceled')) {
+        // Expected and benign when component navigates or remounts before previous connection completes
+        return;
+      }
       console.error('Failed to join Agora voice bridge:', err);
       setError(err.message || 'Could not connect to microphone or voice channel');
     } finally {
       setIsConnecting(false);
+      isConnectingRef.current = false;
     }
-  }, [incidentId, isJoined, isConnecting]);
+  }, [incidentId]);
 
   const leaveVoice = useCallback(async () => {
     try {
@@ -126,24 +141,50 @@ export function useAgoraVoice(incidentId: string): AgoraVoiceState {
     }
   }, []);
 
-  const toggleMute = useCallback(() => {
-    if (localAudioTrackRef.current) {
+  const toggleMute = useCallback(async () => {
+    if (!clientRef.current) return;
+    if (!localAudioTrackRef.current) {
+      try {
+        const AgoraRTC = (await import('agora-rtc-sdk-ng')).default;
+        const localTrack = await AgoraRTC.createMicrophoneAudioTrack({
+          encoderConfig: 'speech_standard',
+          AEC: true,
+          ANS: true,
+        });
+        localAudioTrackRef.current = localTrack;
+        await clientRef.current.publish([localTrack]);
+        setIsMuted(false);
+      } catch (err: any) {
+        console.error('Failed to initialize microphone track:', err);
+      }
+    } else {
       const nextMuted = !isMuted;
       localAudioTrackRef.current.setMuted(nextMuted);
       setIsMuted(nextMuted);
     }
   }, [isMuted]);
 
-  // Clean up on unmount
+  // Clean up on unmount or tab close
   useEffect(() => {
-    return () => {
+    const handleLeave = () => {
       if (localAudioTrackRef.current) {
-        localAudioTrackRef.current.stop();
-        localAudioTrackRef.current.close();
+        try {
+          localAudioTrackRef.current.stop();
+          localAudioTrackRef.current.close();
+        } catch (_) {}
       }
       if (clientRef.current) {
-        clientRef.current.leave();
+        try {
+          clientRef.current.leave();
+        } catch (_) {}
       }
+    };
+
+    window.addEventListener('beforeunload', handleLeave);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleLeave);
+      handleLeave();
     };
   }, []);
 

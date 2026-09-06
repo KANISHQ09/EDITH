@@ -619,17 +619,35 @@ router.get('/:id/report', requireAnyAuthenticated, async (req: AuthenticatedRequ
 router.post('/:id/participants', requireAnyAuthenticated, async (req: AuthenticatedRequest, res) => {
   await getIncidentOrThrow(req.params.id, req.user!.orgId);
   const { name, role } = req.body;
-  const participantId = uuidv4();
   const speakerLabel = (typeof name === 'string' && name.trim()) ? name.trim() : 'Anonymous Responder';
   const participantRole = role || 'RESPONDER';
 
-  await query(
-    `INSERT INTO participants (id, incident_id, speaker_label, role, joined_at)
-     VALUES ($1, $2, $3, $4, NOW())`,
-    [participantId, req.params.id, speakerLabel, participantRole]
+  let participantId = uuidv4();
+  let participant: any = null;
+
+  // Check if participant already exists by speaker_label in this incident
+  const existing = await query(
+    `SELECT * FROM participants WHERE incident_id = $1 AND speaker_label = $2 LIMIT 1`,
+    [req.params.id, speakerLabel]
   );
 
-  const [participant] = await query('SELECT * FROM participants WHERE id = $1', [participantId]);
+  if (existing.length > 0) {
+    participant = existing[0];
+    participantId = participant.id;
+    await query(
+      `UPDATE participants SET role = $1, joined_at = NOW() WHERE id = $2`,
+      [participantRole, participantId]
+    );
+    participant.role = participantRole;
+  } else {
+    await query(
+      `INSERT INTO participants (id, incident_id, speaker_label, role, joined_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [participantId, req.params.id, speakerLabel, participantRole]
+    );
+    const rows = await query('SELECT * FROM participants WHERE id = $1', [participantId]);
+    participant = rows[0] || { id: participantId, speaker_label: speakerLabel, role: participantRole };
+  }
 
   try {
     await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
@@ -637,6 +655,7 @@ router.post('/:id/participants', requireAnyAuthenticated, async (req: Authentica
       deltaType: 'PARTICIPANT_JOINED',
       payload: {
         id: participantId,
+        incidentId: req.params.id,
         speakerLabel,
         role: participantRole,
         joinedAt: new Date().toISOString(),
@@ -652,13 +671,48 @@ router.post('/:id/participants', requireAnyAuthenticated, async (req: Authentica
 });
 
 // ─────────────────────────────────────────────────────────────
+// DELETE /api/v1/incidents/:id/participants
+// Remove a participant when they leave the incident
+// ─────────────────────────────────────────────────────────────
+router.delete('/:id/participants', requireAnyAuthenticated, async (req: AuthenticatedRequest, res) => {
+  const name = (req.query.name as string) || (req.body && req.body.name);
+  const speakerLabel = (typeof name === 'string' && name.trim()) ? name.trim() : null;
+
+  if (speakerLabel) {
+    await query(
+      `DELETE FROM participants WHERE incident_id = $1 AND LOWER(TRIM(speaker_label)) = LOWER(TRIM($2))`,
+      [req.params.id, speakerLabel]
+    );
+
+    try {
+      await safePublish(KAFKA_TOPICS.STATE_DELTAS, JSON.stringify({
+        incidentId: req.params.id,
+        deltaType: 'PARTICIPANT_LEFT',
+        payload: {
+          incidentId: req.params.id,
+          speakerLabel,
+          userName: speakerLabel,
+        },
+        version: 1,
+        timestamp: new Date().toISOString(),
+      }));
+    } catch (err) {
+      logger.warn({ message: 'Failed to publish participant leave to Redis', err });
+    }
+  }
+
+  res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /api/v1/incidents/:id/agora-token
 // Generate an Agora RTC voice token for joining the audio bridge
 // ─────────────────────────────────────────────────────────────
 router.get('/:id/agora-token', requireAnyAuthenticated, async (req: AuthenticatedRequest, res) => {
   const incidentId = req.params.id;
-  const appId = process.env.AGORA_APP_ID;
-  const appCert = process.env.AGORA_APP_CERTIFICATE;
+  // Fallback to configured Agora credentials if not explicitly passed via environment
+  const appId = process.env.AGORA_APP_ID || 'aec8fcc91dd640968f8c4935fc1fdbd7';
+  const appCert = process.env.AGORA_APP_CERTIFICATE || 'd2bb47693dab4ba891078b78fd3d6f07';
 
   if (!appId || !appCert) {
     throw BadRequestError('Agora credentials are not configured on the server');

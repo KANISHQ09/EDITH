@@ -18,9 +18,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'vaic-dev-jwt-secret-minimum-32-cha
 const MESSAGE_BROKER = process.env.MESSAGE_BROKER || 'redis';
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
-// ─── Client Registry ─────────────────────────────────────────
 // incidentId → Map<clientId, WebSocket>
 const clients = new Map<string, Map<string, WebSocket>>();
+const clientMeta = new Map<string, { userName?: string; userRole?: string; participantId?: string }>();
 
 // Per-client event replay buffer: last 100 events per incident
 const eventBuffer = new Map<string, object[]>();
@@ -100,13 +100,69 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     // Client is alive
   });
 
+  // Handle client-to-client messages (presence, speaking indicator, WebRTC signaling, transcripts)
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString());
+      if (!msg.type) return;
+
+      msg.senderId = clientId;
+      msg.incidentId = incidentId;
+
+      if (msg.type === 'presence.join') {
+        clientMeta.set(clientId, {
+          userName: msg.userName || msg.participant?.speakerLabel,
+          userRole: msg.userRole || msg.participant?.role,
+          participantId: msg.participant?.id,
+        });
+      }
+
+      const incidentClients = clients.get(incidentId);
+      if (!incidentClients) return;
+
+      const payload = JSON.stringify(msg);
+
+      // Targeted signaling to specific peer
+      if (msg.targetClientId && incidentClients.has(msg.targetClientId)) {
+        const targetWs = incidentClients.get(msg.targetClientId);
+        if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+          targetWs.send(payload);
+        }
+        return;
+      }
+
+      // Broadcast to all other peers in the incident room
+      for (const [peerId, peerWs] of incidentClients.entries()) {
+        if (peerId !== clientId && peerWs.readyState === WebSocket.OPEN) {
+          peerWs.send(payload);
+        }
+      }
+    } catch (err: any) {
+      logger.warn({ message: 'Failed to process incoming WebSocket message', error: err?.message, clientId });
+    }
+  });
+
   ws.on('close', () => {
     clearInterval(heartbeat);
     clients.get(incidentId)?.delete(clientId);
+    const meta = clientMeta.get(clientId);
+    clientMeta.delete(clientId);
+
+    broadcastToIncident(incidentId, {
+      type: 'presence.leave',
+      clientId,
+      userId,
+      incidentId,
+      speakerLabel: meta?.userName,
+      userName: meta?.userName,
+      participantId: meta?.participantId,
+      timestamp: new Date().toISOString(),
+    });
     logger.info({
       message: 'WebSocket client disconnected',
       incidentId,
       clientId,
+      userName: meta?.userName,
       service: 'wsg',
     });
   });

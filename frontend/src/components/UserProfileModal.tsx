@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useIncidentStore } from '@/stores/incidentStore';
+import { apiFetch } from '@/lib/api';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export function UserProfileModal({ isOpen, onClose, incidentId, isInitialJoin = 
     // Register on backend if incidentId is available
     if (incidentId) {
       try {
-        await fetch(`/api/v1/incidents/${incidentId}/participants`, {
+        await apiFetch(`/api/v1/incidents/${incidentId}/participants`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

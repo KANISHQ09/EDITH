@@ -8,15 +8,22 @@ import { useAgoraVoice } from '@/hooks/useAgoraVoice';
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { AiAssistant3DOrb } from '@/components/landing/AiAssistant3DOrb';
+import { apiFetch } from '@/lib/api';
 
 interface GoogleMeetWarRoomProps {
   incidentId: string;
+  sendMessage?: (data: any) => void;
+  lastWsMessage?: any;
+  isHost?: boolean;
   onDeclareResolved?: () => void;
   onOpenReport?: () => void;
 }
 
 export function GoogleMeetWarRoom({
   incidentId,
+  sendMessage,
+  lastWsMessage,
+  isHost = true,
   onDeclareResolved,
   onOpenReport,
 }: GoogleMeetWarRoomProps) {
@@ -113,6 +120,69 @@ export function GoogleMeetWarRoom({
     pagerdutyRoutingKey: '',
   });
   const [isSavingIntegrations, setIsSavingIntegrations] = useState(false);
+
+  // Google Meet Knock & Admission Control State
+  interface PendingKnock {
+    knockId: string;
+    userName: string;
+    userRole: string;
+    timestamp: string;
+  }
+  const [pendingKnocks, setPendingKnocks] = useState<PendingKnock[]>([]);
+
+  // Listen for join requests (knock.request) and cancellations (knock.cancel)
+  useEffect(() => {
+    if (!lastWsMessage) return;
+
+    if (lastWsMessage.type === 'knock.request') {
+      const { knockId, userName: kName, userRole: kRole, timestamp } = lastWsMessage;
+      if (!knockId || !kName) return;
+
+      setPendingKnocks((prev) => {
+        if (prev.some((k) => k.knockId === knockId)) return prev;
+        return [
+          ...prev,
+          {
+            knockId,
+            userName: kName,
+            userRole: kRole || 'SRE',
+            timestamp: timestamp || new Date().toISOString(),
+          },
+        ];
+      });
+    } else if (lastWsMessage.type === 'knock.cancel') {
+      setPendingKnocks((prev) => prev.filter((k) => k.knockId !== lastWsMessage.knockId));
+    }
+  }, [lastWsMessage]);
+
+  const handleAdmitKnock = (knock: PendingKnock) => {
+    setPendingKnocks((prev) => prev.filter((k) => k.knockId !== knock.knockId));
+    if (sendMessage) {
+      sendMessage({
+        type: 'knock.response',
+        knockId: knock.knockId,
+        userName: knock.userName,
+        userRole: knock.userRole,
+        action: 'ADMIT',
+        admittedBy: userName || 'Host',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  };
+
+  const handleDenyKnock = (knock: PendingKnock) => {
+    setPendingKnocks((prev) => prev.filter((k) => k.knockId !== knock.knockId));
+    if (sendMessage) {
+      sendMessage({
+        type: 'knock.response',
+        knockId: knock.knockId,
+        userName: knock.userName,
+        action: 'DENY',
+        deniedBy: userName || 'Host',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -241,7 +311,7 @@ export function GoogleMeetWarRoom({
     setIsGeneratingBriefing(true);
 
     try {
-      const res = await fetch(`/api/v1/incidents/${incidentId}/briefing`, {
+      const res = await apiFetch(`/api/v1/incidents/${incidentId}/briefing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -286,7 +356,7 @@ export function GoogleMeetWarRoom({
     setIsAsking(true);
     setIsEdithThinking(true);
     try {
-      const res = await fetch(`/api/v1/incidents/${incidentId}/query`, {
+      const res = await apiFetch(`/api/v1/incidents/${incidentId}/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: trimmed }),
@@ -399,7 +469,7 @@ export function GoogleMeetWarRoom({
     setIsAddingIntel(true);
     try {
       if (newIntelType === 'FACT') {
-        const res = await fetch(`/api/v1/incidents/${incidentId}/facts`, {
+        const res = await apiFetch(`/api/v1/incidents/${incidentId}/facts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: newIntelContent.trim() }),
@@ -409,7 +479,7 @@ export function GoogleMeetWarRoom({
           setInitialState({ facts: [...facts, data.data] });
         }
       } else if (newIntelType === 'ACTION_ITEM') {
-        const res = await fetch(`/api/v1/incidents/${incidentId}/action-items`, {
+        const res = await apiFetch(`/api/v1/incidents/${incidentId}/action-items`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -422,7 +492,7 @@ export function GoogleMeetWarRoom({
           setInitialState({ actionItems: [...actionItems, data.data] });
         }
       } else if (newIntelType === 'HYPOTHESIS') {
-        const res = await fetch(`/api/v1/incidents/${incidentId}/hypotheses`, {
+        const res = await apiFetch(`/api/v1/incidents/${incidentId}/hypotheses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: newIntelContent.trim() }),
@@ -432,7 +502,7 @@ export function GoogleMeetWarRoom({
           setInitialState({ hypotheses: [...hypotheses, data.data] });
         }
       } else if (newIntelType === 'DECISION') {
-        const res = await fetch(`/api/v1/incidents/${incidentId}/decisions`, {
+        const res = await apiFetch(`/api/v1/incidents/${incidentId}/decisions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: newIntelContent.trim() }),
@@ -468,7 +538,7 @@ export function GoogleMeetWarRoom({
         localStorage.setItem('edith_jira_token', roomIntegrations.jiraApiToken || '');
         localStorage.setItem('edith_pagerduty_key', roomIntegrations.pagerdutyRoutingKey || '');
       }
-      await fetch(`/api/v1/incidents/${incidentId}/integrations`, {
+      await apiFetch(`/api/v1/incidents/${incidentId}/integrations`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(roomIntegrations),
@@ -486,7 +556,7 @@ export function GoogleMeetWarRoom({
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      const res = await fetch(`/api/v1/incidents/${incidentId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/v1/incidents/${incidentId}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || 'Failed to delete room');
@@ -505,7 +575,81 @@ export function GoogleMeetWarRoom({
     const text = chatInput.trim();
     setChatInput('');
     await submitUtterance(text, userName || 'Incident Commander', userRole || 'INCIDENT_COMMANDER');
+    if (sendMessage) {
+      sendMessage({
+        type: 'chat.message',
+        senderName: userName || 'Incident Commander',
+        speakerRole: userRole || 'INCIDENT_COMMANDER',
+        content: text,
+        timestamp: new Date().toISOString(),
+      });
+    }
   };
+
+  // Auto-join Agora audio bridge as listener so remote speakers are heard immediately
+  useEffect(() => {
+    if (!isJoined && !isConnecting) {
+      joinVoice().catch((err) => {
+        console.warn('Audio auto-join pending user interaction:', err);
+      });
+    }
+  }, [isJoined, isConnecting, joinVoice]);
+
+  // Handle participant leave call with full cleanup (WebSocket + DB + localStorage)
+  const handleLeaveCall = async () => {
+    const myName = userName || 'Responder';
+
+    // 1. Broadcast presence.leave to all participants over WebSocket
+    if (sendMessage) {
+      sendMessage({
+        type: 'presence.leave',
+        userName: myName,
+        speakerLabel: myName,
+      });
+    }
+
+    // 2. Remove participant from PostgreSQL database so refresh does not bring them back
+    try {
+      await apiFetch(`/api/v1/incidents/${incidentId}/participants?name=${encodeURIComponent(myName)}`, {
+        method: 'DELETE',
+      });
+    } catch (_) {}
+
+    // 3. Clear local admission token so re-entry requires waiting room approval
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(`incident_${incidentId}_admitted`);
+    }
+
+    // 4. Leave Agora audio bridge and stop microphone
+    leaveVoice();
+    setIsSpeechListening(false);
+
+    // 5. Navigate to home
+    router.push('/');
+  };
+
+  // Handle tab closing or browser refresh - broadcast presence.leave and DB cleanup
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const myName = userName || 'Responder';
+      if (sendMessage) {
+        sendMessage({
+          type: 'presence.leave',
+          userName: myName,
+          speakerLabel: myName,
+        });
+      }
+      try {
+        const url = `/api/v1/incidents/${incidentId}/participants?name=${encodeURIComponent(myName)}`;
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(url);
+        }
+      } catch (_) {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [incidentId, userName, sendMessage]);
 
   // User initials helper
   const getInitials = (name?: string) => {
@@ -551,6 +695,47 @@ export function GoogleMeetWarRoom({
 
   const meetingCode = incident?.id ? incident.id.slice(0, 12) : 'inc-war-room';
   const isSelfSpeaking = (audioLevel > 18 && isSpeechListening) || activeSpeakers.has(0);
+
+  // Broadcast speaking indicator in real time to all room peers
+  useEffect(() => {
+    if (!sendMessage || !userName) return;
+    sendMessage({
+      type: 'user.speaking',
+      userName,
+      userRole,
+      speakerLabel: userName,
+      isSpeaking: isSelfSpeaking,
+    });
+  }, [isSelfSpeaking, sendMessage, userName, userRole]);
+
+  // Unified Remote Participants (DB participants + Agora remote peers)
+  const normalizedMyName = (userName || '').trim().toLowerCase();
+
+  // 1. Remote participants from DB/store
+  const remoteDbParticipants = participants.filter((p) => {
+    const label = (p.speakerLabel || '').trim().toLowerCase();
+    return label && label !== normalizedMyName && !label.includes('(you)');
+  });
+
+  const stageRemoteUsers: Array<{
+    key: string;
+    name: string;
+    role: string;
+    isSpeaking: boolean;
+    initials: string;
+  }> = remoteDbParticipants.map((p, idx) => {
+    const isSpeakingRemote =
+      !!p.isSpeaking ||
+      (p.speakerLabel ? activeSpeakers.has(p.speakerLabel) : false) ||
+      (p.id ? activeSpeakers.has(p.id) : false);
+    return {
+      key: p.id || `remote-p-${idx}`,
+      name: p.speakerLabel || `Responder ${idx + 1}`,
+      role: p.role || 'ENGINEER',
+      isSpeaking: isSpeakingRemote,
+      initials: getInitials(p.speakerLabel),
+    };
+  });
 
   return (
     <div className="gm-container">
@@ -735,11 +920,116 @@ export function GoogleMeetWarRoom({
         </div>
       )}
 
+      {/* Real-time Google Meet Knock / Admission Banner */}
+      {pendingKnocks.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 68,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#282A2C',
+            border: '1px solid rgba(255, 255, 255, 0.16)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.65)',
+            borderRadius: 14,
+            padding: '10px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            zIndex: 9999,
+            maxWidth: '92vw',
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #1A73E8 0%, #7C3AED 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              fontSize: 14,
+              color: '#FFFFFF',
+              flexShrink: 0,
+            }}
+          >
+            {getInitials(pendingKnocks[0].userName)}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 13, color: '#E8EAED', fontWeight: 600 }}>
+              {pendingKnocks[0].userName} ({pendingKnocks[0].userRole.replace('_', ' ')})
+            </span>
+            <span style={{ fontSize: 11, color: '#9AA0A6' }}>
+              {pendingKnocks.length > 1
+                ? `and ${pendingKnocks.length - 1} other${pendingKnocks.length > 2 ? 's' : ''} want to join this call`
+                : 'wants to join this call'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+            <button
+              type="button"
+              onClick={() => handleDenyKnock(pendingKnocks[0])}
+              style={{
+                background: 'transparent',
+                color: '#E8EAED',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: 18,
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Deny
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAdmitKnock(pendingKnocks[0])}
+              style={{
+                background: '#1A73E8',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: 18,
+                padding: '6px 16px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(26, 115, 232, 0.4)',
+              }}
+            >
+              Admit
+            </button>
+            {pendingKnocks.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  pendingKnocks.forEach((k) => handleAdmitKnock(k));
+                }}
+                style={{
+                  background: '#8AB4F8',
+                  color: '#202124',
+                  border: 'none',
+                  borderRadius: 18,
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Admit all
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ───────────────────────────────────────────────────────── */}
       {/* Center Video / Audio Meeting Stage */}
       {/* ───────────────────────────────────────────────────────── */}
       <main className="gm-stage-area">
-        <div className={`gm-stage-grid ${remoteUsers.length > 0 ? 'multi-user' : 'solo'}`}>
+        <div className={`gm-stage-grid ${stageRemoteUsers.length > 0 ? 'multi-user' : 'solo'}`}>
           {/* 1. LOCAL USER CARD (You) */}
           <div className={`gm-card ${isSelfSpeaking ? 'is-speaking' : ''}`}>
             {/* Top-Right Mute / Audio Indicator */}
@@ -907,30 +1197,40 @@ export function GoogleMeetWarRoom({
             </div>
           </div>
 
-          {/* 3. REMOTE PARTICIPANTS CARDS (Real Responders from DB/Agora) */}
-          {remoteUsers.map((user) => {
-            const isSpeakingRemote = activeSpeakers.has(user.uid);
-            return (
-              <div key={user.uid} className={`gm-card ${isSpeakingRemote ? 'is-speaking' : ''}`}>
-                <div className="gm-card-status">
-                  <div className="gm-live-mic-badge">
+          {/* 3. REMOTE PARTICIPANTS CARDS (Real Responders from DB/Agora/WebSocket) */}
+          {stageRemoteUsers.map((user) => (
+            <div key={user.key} className={`gm-card ${user.isSpeaking ? 'is-speaking' : ''}`}>
+              <div className="gm-card-status">
+                {user.isSpeaking ? (
+                  <div className="gm-live-mic-badge" title="Microphone Active">
                     <span className="gm-wave-bar bar1" />
                     <span className="gm-wave-bar bar2" />
+                    <span className="gm-wave-bar bar3" />
                   </div>
-                </div>
-                <div className="gm-avatar-wrapper">
-                  <div className={`gm-pulse-ring ${isSpeakingRemote ? 'active' : ''}`} />
-                  <div className="gm-avatar-circle remote">
-                    <span className="gm-avatar-text">R</span>
+                ) : (
+                  <div className="gm-mute-badge" title="Microphone Inactive">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+                      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+                      <line x1="12" y1="19" x2="12" y2="23" />
+                      <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
                   </div>
-                </div>
-                <div className="gm-card-name">
-                  <span>Responder #{user.uid}</span>
-                  <span className="gm-role-tag">ENGINEER</span>
+                )}
+              </div>
+              <div className="gm-avatar-wrapper">
+                <div className={`gm-pulse-ring ${user.isSpeaking ? 'active' : ''}`} />
+                <div className="gm-avatar-circle remote">
+                  <span className="gm-avatar-text">{user.initials}</span>
                 </div>
               </div>
-            );
-          })}
+              <div className="gm-card-name">
+                <span>{user.name}</span>
+                <span className="gm-role-tag">{user.role ? user.role.replace('_', ' ') : 'ENGINEER'}</span>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Floating Closed Captions (CC) Overlay (Auto-hides after speaking) */}
@@ -1086,11 +1386,7 @@ export function GoogleMeetWarRoom({
           {/* 7. Leave / Return to Landing Page */}
           <button
             type="button"
-            onClick={() => {
-              leaveVoice();
-              setIsSpeechListening(false);
-              router.push('/');
-            }}
+            onClick={handleLeaveCall}
             className="gm-pill-btn end-call"
             title="Exit Incident Room & Return to Landing Page"
           >
@@ -1154,6 +1450,7 @@ export function GoogleMeetWarRoom({
             onClick={() => setActiveDrawer(activeDrawer === 'people' ? null : 'people')}
             className={`gm-dock-btn ${activeDrawer === 'people' ? 'active' : ''}`}
             title="Connected Incident Responders"
+            style={{ position: 'relative' }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -1161,7 +1458,13 @@ export function GoogleMeetWarRoom({
               <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            <span className="gm-dock-badge">{1 + remoteUsers.length}</span>
+            {pendingKnocks.length > 0 ? (
+              <span className="gm-dock-badge" style={{ background: '#F59E0B', color: '#000000', fontWeight: 800 }}>
+                {pendingKnocks.length}
+              </span>
+            ) : (
+              <span className="gm-dock-badge">{1 + stageRemoteUsers.length}</span>
+            )}
           </button>
 
           {/* 5. Incident Operations & Post-Mortem ISR Drawer */}
@@ -1189,7 +1492,7 @@ export function GoogleMeetWarRoom({
               {activeDrawer === 'transcripts' && 'Live Transcripts & Chat'}
               {activeDrawer === 'intelligence' && 'EDITH Intelligence Hub'}
               {activeDrawer === 'timeline' && 'Chronological Timeline'}
-              {activeDrawer === 'people' && `Incident Responders (${1 + remoteUsers.length})`}
+              {activeDrawer === 'people' && `Incident Responders (${1 + stageRemoteUsers.length})`}
               {activeDrawer === 'controls' && 'Incident Operations & ISR'}
             </h3>
             <button
@@ -1539,9 +1842,113 @@ export function GoogleMeetWarRoom({
           {/* DRAWER 4: PEOPLE & RESPONDERS */}
           {activeDrawer === 'people' && (
             <div className="gm-drawer-content">
+              {/* Waiting Room Section for Pending Knocks */}
+              {pendingKnocks.length > 0 && (
+                <div style={{
+                  background: 'rgba(234, 179, 8, 0.08)',
+                  border: '1px solid rgba(234, 179, 8, 0.28)',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  marginBottom: 16,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 13 }}>⏳</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#FACC15', letterSpacing: '0.04em' }}>
+                        WAITING TO JOIN ({pendingKnocks.length})
+                      </span>
+                    </div>
+                    {pendingKnocks.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => pendingKnocks.forEach((k) => handleAdmitKnock(k))}
+                        style={{
+                          background: '#1A73E8',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: 12,
+                          padding: '3px 10px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Admit all
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {pendingKnocks.map((k) => (
+                      <div key={k.knockId} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'rgba(0,0,0,0.3)',
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: '#3B82F6',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: '#FFFFFF',
+                          }}>
+                            {getInitials(k.userName)}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>{k.userName}</div>
+                            <div style={{ fontSize: 10, color: '#94A3B8' }}>{k.userRole.replace('_', ' ')}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDenyKnock(k)}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              color: '#CBD5E1',
+                              borderRadius: 12,
+                              padding: '4px 8px',
+                              fontSize: 11,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Deny
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdmitKnock(k)}
+                            style={{
+                              background: '#1A73E8',
+                              border: 'none',
+                              color: '#FFFFFF',
+                              borderRadius: 12,
+                              padding: '4px 10px',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Admit
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="gm-people-invite-box">
                 <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 8 }}>
-                  Anyone with this link can join this real-time incident room instantly.
+                  Anyone with this link can request to join this real-time incident room.
                 </p>
                 <button type="button" onClick={handleCopyLink} className="gm-btn-outline-wide">
                   <span>{copiedLink ? 'Copied Link!' : 'Copy Shareable Link'}</span>
@@ -1559,30 +1966,21 @@ export function GoogleMeetWarRoom({
                   <span className="gm-person-badge">Host</span>
                 </div>
 
-                {/* Remote Agora participants */}
-                {remoteUsers.map((u) => (
-                  <div key={u.uid} className="gm-person-row">
-                    <div className="gm-person-avatar remote">R</div>
+                {/* All Remote Joined Participants */}
+                {stageRemoteUsers.map((u) => (
+                  <div key={u.key} className="gm-person-row">
+                    <div className="gm-person-avatar remote">{u.initials}</div>
                     <div className="gm-person-info">
-                      <span className="gm-person-name">Responder #{u.uid}</span>
-                      <span className="gm-person-role">RESPONDER</span>
+                      <span className="gm-person-name">{u.name}</span>
+                      <span className="gm-person-role">{u.role ? u.role.replace('_', ' ') : 'ENGINEER'}</span>
                     </div>
-                    <span className="gm-person-badge">Audio Connected</span>
+                    {u.isSpeaking ? (
+                      <span className="gm-person-badge" style={{ background: '#059669', color: '#FFFFFF' }}>Speaking</span>
+                    ) : (
+                      <span className="gm-person-badge">In Call</span>
+                    )}
                   </div>
                 ))}
-
-                {/* Stored DB participants */}
-                {participants
-                  .filter((p) => p.speakerLabel && !p.speakerLabel.includes(userName || '---'))
-                  .map((p) => (
-                    <div key={p.id} className="gm-person-row">
-                      <div className="gm-person-avatar">{getInitials(p.speakerLabel)}</div>
-                      <div className="gm-person-info">
-                        <span className="gm-person-name">{p.speakerLabel}</span>
-                        <span className="gm-person-role">{p.role}</span>
-                      </div>
-                    </div>
-                  ))}
               </div>
             </div>
           )}

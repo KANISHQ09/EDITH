@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiFetch } from '@/lib/api';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -185,6 +186,7 @@ interface IncidentStore {
   addTranscript: (entry: TranscriptEntry) => void;
   setTranscripts: (entries: TranscriptEntry[]) => void;
   setSpeaking: (participantId: string, isSpeaking: boolean) => void;
+  setParticipants: (participants: Participant[]) => void;
   confirmToolAction: (actionId: string) => void;
   rejectToolAction: (actionId: string) => void;
   resolveConflict: (conflictId: string) => void;
@@ -417,16 +419,45 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
           };
 
         case 'PARTICIPANT_JOINED': {
-          const id = (payload.participantId as string) || crypto.randomUUID();
-          if (state.participants.some(p => p.id === id)) return state;
+          const id = (payload.id as string) || (payload.participantId as string) || crypto.randomUUID();
+          const speakerLabel = (payload.speakerLabel as string) || (payload.name as string) || 'Responder';
+          const role = (payload.role as string) || 'RESPONDER';
+          const existingIndex = state.participants.findIndex(p => p.id === id || p.speakerLabel === speakerLabel);
+          if (existingIndex >= 0) {
+            const updated = [...state.participants];
+            updated[existingIndex] = {
+              ...updated[existingIndex],
+              id,
+              speakerLabel,
+              role,
+              joinedAt: timestamp || updated[existingIndex].joinedAt,
+            };
+            return { participants: updated };
+          }
           return {
             participants: [...state.participants, {
               id,
               incidentId: delta.incidentId,
-              role: (payload.role as string) || 'RESPONDER',
-              joinedAt: timestamp,
+              speakerLabel,
+              role,
+              joinedAt: timestamp || new Date().toISOString(),
               speakingTimeSeconds: 0,
             }],
+          };
+        }
+
+        case 'PARTICIPANT_LEFT': {
+          const leftId = (payload.id as string) || (payload.participantId as string);
+          const leftLabel = ((payload.speakerLabel as string) || (payload.userName as string) || '')
+            .trim()
+            .toLowerCase();
+
+          return {
+            participants: state.participants.filter((p) => {
+              if (leftId && p.id === leftId) return false;
+              if (leftLabel && (p.speakerLabel || '').trim().toLowerCase() === leftLabel) return false;
+              return true;
+            }),
           };
         }
 
@@ -454,15 +485,17 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
 
   setSpeaking: (participantId, isSpeaking) => set((state) => ({
     participants: state.participants.map(p =>
-      p.id === participantId ? { ...p, isSpeaking } : p
+      p.id === participantId || p.speakerLabel === participantId ? { ...p, isSpeaking } : p
     ),
   })),
+
+  setParticipants: (participants) => set({ participants }),
 
   confirmToolAction: (actionId) => {
     set((state) => ({
       pendingToolActions: state.pendingToolActions.filter(a => a.id !== actionId)
     }));
-    fetch(`/api/v1/incidents/${get().incident?.id}/tool-actions/${actionId}/confirm`, {
+    apiFetch(`/api/v1/incidents/${get().incident?.id}/tool-actions/${actionId}/confirm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     }).catch(() => {});
@@ -472,7 +505,7 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
     set((state) => ({
       pendingToolActions: state.pendingToolActions.filter(a => a.id !== actionId)
     }));
-    fetch(`/api/v1/incidents/${get().incident?.id}/tool-actions/${actionId}/reject`, {
+    apiFetch(`/api/v1/incidents/${get().incident?.id}/tool-actions/${actionId}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     }).catch(() => {});
@@ -484,7 +517,7 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
         c.id === conflictId ? { ...c, status: 'RESOLVED' as const } : c
       )
     }));
-    fetch(`/api/v1/incidents/${get().incident?.id}/conflicts/${conflictId}/resolve`, {
+    apiFetch(`/api/v1/incidents/${get().incident?.id}/conflicts/${conflictId}/resolve`, {
       method: 'POST',
     }).catch(() => {});
   },
@@ -526,7 +559,7 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
     }));
 
     try {
-      await fetch(`/api/v1/incidents/${hyp.incidentId}/facts`, {
+      await apiFetch(`/api/v1/incidents/${hyp.incidentId}/facts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: hyp.content }),
@@ -584,7 +617,7 @@ export const useIncidentStore = create<IncidentStore>((set, get) => ({
 
     // 2. Post to backend for persistence & Gemini classification
     try {
-      const res = await fetch(`/api/v1/incidents/${incidentId}/utterances`, {
+      const res = await apiFetch(`/api/v1/incidents/${incidentId}/utterances`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

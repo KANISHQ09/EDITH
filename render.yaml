@@ -25,6 +25,10 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: AGORA_APP_ID
+        value: aec8fcc91dd640968f8c4935fc1fdbd7
+      - key: AGORA_APP_CERTIFICATE
+        value: d2bb47693dab4ba891078b78fd3d6f07
 
   # ─────────────────────────────────────────────────────────────────────────
   # 2. EDITH WebSocket Gateway (Real-Time Live Streaming)

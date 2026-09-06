@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, useCallback, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useIncidentStore } from '@/stores/incidentStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { GoogleMeetWarRoom } from '@/components/meet/GoogleMeetWarRoom';
+import { JoinLobbyModal } from '@/components/meet/JoinLobbyModal';
 import { ReportModal } from '@/components/ReportModal';
 import { UserProfileModal } from '@/components/UserProfileModal';
 import { apiFetch } from '@/lib/api';
@@ -16,6 +17,7 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
 
   const {
     incident,
+    participants,
     setInitialState,
     setTranscripts,
     setIncident,
@@ -29,9 +31,22 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [lastWsMessage, setLastWsMessage] = useState<any>(null);
+  const [isAdmitted, setIsAdmitted] = useState<boolean>(false);
+  const [isHost, setIsHost] = useState<boolean>(false);
 
-  // Connect WebSocket gateway in real-time
-  useWebSocket(id);
+  // Connect WebSocket gateway in real-time with incoming message listener
+  const handleWsMessage = useCallback((msg: any) => {
+    if (
+      msg?.type === 'knock.request' ||
+      msg?.type === 'knock.response' ||
+      msg?.type === 'knock.cancel'
+    ) {
+      setLastWsMessage(msg);
+    }
+  }, []);
+
+  const { sendMessage } = useWebSocket(id, undefined, undefined, handleWsMessage);
 
   // Prompt user to define their name if not set yet on this device
   useEffect(() => {
@@ -174,6 +189,34 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
         if (inc.settings?.isrReport) {
           setReportMarkdown(inc.settings.isrReport);
         }
+
+        // Determine host & admission status
+        const currentParticipants = data.participants || [];
+        const alreadyAdmitted = typeof window !== 'undefined' && localStorage.getItem(`incident_${id}_admitted`) === 'true';
+        const storedName = typeof window !== 'undefined' ? localStorage.getItem('vaic_user_name') : null;
+        
+        // Host is strictly the creator whose name matches the declared incident leadName,
+        // or the creator on the device that just declared the incident (empty room + stored name).
+        const isCreator = Boolean(
+          storedName &&
+          inc.settings?.leadName &&
+          storedName.trim().toLowerCase() === inc.settings.leadName.trim().toLowerCase()
+        );
+        const isInitialHost = isCreator || (currentParticipants.length === 0 && Boolean(storedName));
+
+        if (isInitialHost) {
+          setIsHost(true);
+          setIsAdmitted(true);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`incident_${id}_admitted`, 'true');
+          }
+        } else if (alreadyAdmitted) {
+          setIsAdmitted(true);
+          setIsHost(false);
+        } else {
+          setIsAdmitted(false);
+          setIsHost(false);
+        }
       } catch (err: any) {
         console.error('Failed to load incident:', err);
         setLoadError(err.message || 'Error connecting to backend API');
@@ -183,7 +226,35 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
     }
 
     loadIncident();
-  }, [id, setInitialState, setTranscripts]);
+  }, [id, setInitialState, setTranscripts, userRole]);
+
+  // Ensure current user is auto-registered as a participant only after being admitted
+  useEffect(() => {
+    if (!isAdmitted || !userName || !id || isLoading) return;
+    const register = async () => {
+      try {
+        await apiFetch(`/api/v1/incidents/${id}/participants`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: userName, role: userRole }),
+        });
+        if (sendMessage) {
+          sendMessage({
+            type: 'presence.join',
+            userName,
+            userRole,
+            participant: {
+              speakerLabel: userName,
+              role: userRole,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to auto-register participant:', err);
+      }
+    };
+    register();
+  }, [isAdmitted, id, userName, userRole, isLoading, sendMessage]);
 
   // Handle Declare Resolved
   const handleDeclareResolved = async () => {
@@ -301,27 +372,48 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
     );
   }
 
+  if (!isAdmitted) {
+    return (
+      <>
+        <JoinLobbyModal
+          incidentId={id}
+          incidentTitle={incident?.title}
+          incidentSeverity={incident?.severity}
+          activeParticipantsCount={participants.length}
+          onAdmitted={(name, role) => {
+            setIsAdmitted(true);
+          }}
+          sendMessage={sendMessage}
+          lastWsMessage={lastWsMessage}
+        />
+
+        {/* Post-Mortem ISR Modal if opened */}
+        {isReportOpen && reportMarkdown && (
+          <ReportModal
+            isOpen={isReportOpen}
+            onClose={() => setIsReportOpen(false)}
+            reportMarkdown={reportMarkdown}
+            incidentTitle={incident?.title || id}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       {/* Full-Screen Google Meet Style War Room */}
       <GoogleMeetWarRoom
         incidentId={id}
+        sendMessage={sendMessage}
+        lastWsMessage={lastWsMessage}
+        isHost={isHost}
         onDeclareResolved={handleDeclareResolved}
         onOpenReport={() => {
           if (reportMarkdown) setIsReportOpen(true);
           else handleDeclareResolved();
         }}
       />
-
-      {/* Name / Role Setup Modal on First Join */}
-      {showJoinModal && (
-        <UserProfileModal
-          isOpen={showJoinModal}
-          onClose={() => setShowJoinModal(false)}
-          incidentId={id}
-          isInitialJoin={true}
-        />
-      )}
 
       {/* Post-Mortem ISR Modal */}
       {isReportOpen && reportMarkdown && (
