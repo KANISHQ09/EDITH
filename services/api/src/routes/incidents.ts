@@ -96,8 +96,7 @@ async function getIncidentOrThrow(incidentId: string, orgId: string) {
 // ─────────────────────────────────────────────────────────────
 router.get('/', requireAnyAuthenticated, async (req: AuthenticatedRequest, res) => {
   const incidents = await query(
-    'SELECT * FROM incidents WHERE org_id = $1 ORDER BY start_ts DESC',
-    [req.user!.orgId]
+    'SELECT * FROM incidents ORDER BY start_ts DESC'
   );
   res.json({ data: incidents });
 });

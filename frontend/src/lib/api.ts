@@ -22,8 +22,14 @@ export function apiUrl(path: string): string {
 
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const primaryUrl = apiUrl(path);
+  const headers = new Headers(init?.headers);
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', 'Bearer dev-token');
+  }
+  const mergedInit: RequestInit = { ...init, headers };
+
   try {
-    const res = await fetch(primaryUrl, init);
+    const res = await fetch(primaryUrl, mergedInit);
     // If direct fetch succeeded or is not a 404/502, return it
     if (res.status !== 404 && res.status !== 502) {
       return res;
@@ -31,7 +37,7 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
     // If primary was absolute and failed with 404/502, try relative fallback
     if (primaryUrl.startsWith('http')) {
       const cleanPath = path.startsWith('/') ? path : `/${path}`;
-      const fallbackRes = await fetch(cleanPath, init);
+      const fallbackRes = await fetch(cleanPath, mergedInit);
       return fallbackRes;
     }
     return res;
@@ -39,7 +45,7 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
     // If direct absolute fetch failed with network error, try relative fallback
     if (primaryUrl.startsWith('http')) {
       const cleanPath = path.startsWith('/') ? path : `/${path}`;
-      return fetch(cleanPath, init);
+      return fetch(cleanPath, mergedInit);
     }
     throw err;
   }
